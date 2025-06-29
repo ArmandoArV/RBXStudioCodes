@@ -19,4 +19,24 @@ function Podium:PrintInfo()
     print("Podium ID:", self.Id, "Owner:", self.Owner, "IsOpen:", self.IsOpen)
 end
 
+function Podium:Open()
+    if self.IsOpen then
+        print("Podium is already open.")
+        return
+    end
+    self.IsOpen = true
+    self.Model.IsOpen.Value = true
+    print("Podium opened.")
+end
+
+function Podium:Close()
+    if not self.IsOpen then
+        print("Podium is already closed.")
+        return
+    end
+    self.IsOpen = false
+    self.Model.IsOpen.Value = false
+    print("Podium closed.")
+end
+
 return Podium

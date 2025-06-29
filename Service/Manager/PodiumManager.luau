@@ -16,7 +16,13 @@ function PodiumManager.new(podiumsFolder)
 end
 
 function PodiumManager:GetPodiumById(id)
-    return self.Podiums[id]
+    return self.Podiums[tonumber(id)]
+end
+
+function PodiumManager:UpdatePodiums()
+    for _, podium in pairs(self.Podiums) do
+        podium:Update()
+    end
 end
 
 return PodiumManager
