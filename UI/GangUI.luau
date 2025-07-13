@@ -1,37 +1,32 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local GroupService = game:GetService("GroupService") -- Add this line
-local GangRemoteEvent = "GangRemoteEvent"
-local GangHandler = ReplicatedStorage:WaitForChild("Handler"):WaitForChild("GangHandler")
-local TurfHandler = ReplicatedStorage:WaitForChild("Handler"):WaitForChild("TurfHandler")
+local Players = game:GetService("Players")
+local GroupService = game:GetService("GroupService")
 
--- Ensure the RemoteEvent exists
-local remoteEvent = ReplicatedStorage:FindFirstChild(GangRemoteEvent)
-if not remoteEvent then
-	remoteEvent = Instance.new("RemoteEvent")
-	remoteEvent.Name = GangRemoteEvent
-	remoteEvent.Parent = ReplicatedStorage
+-- Debugging function
+local function debugPrint(...)
+	print("[Gang Creation Debug]", ...)
 end
 
--- Update the UI 
+-- UI Setup
 local GangMenu = script.Parent
-local Buttons = GangMenu:WaitForChild("Buttons", 5) -- waits up to 5 seconds
-local Frames = GangMenu:WaitForChild("Menu", 5)
-if not Buttons then
-	warn("Buttons object not found in GangMenu after waiting!")
-	return
-end
-if not Frames then
-	warn("Menu object not found in GangMenu after waiting!")
-	return
-end
+local Buttons = GangMenu:WaitForChild("Buttons")
+local Frames = GangMenu:WaitForChild("Menu")
 
+-- Ensure RemoteEvent exists
+local GangRemoteEvent = ReplicatedStorage:FindFirstChild("GangRemoteEvent") or Instance.new("RemoteEvent")
+GangRemoteEvent.Name = "GangRemoteEvent"
+GangRemoteEvent.Parent = ReplicatedStorage
+
+-- UI Visibility Management
 local function setButtonColors(activeButton)
-	Buttons.TURFS.BackgroundColor3 = activeButton == Buttons.TURFS and Color3.fromRGB(45, 45, 45) or Color3.new(0, 0, 0)
-	Buttons.CREATE.BackgroundColor3 = activeButton == Buttons.CREATE and Color3.fromRGB(45, 45, 45) or
-		Color3.new(0, 0, 0)
-	Buttons.MENU.BackgroundColor3 = activeButton == Buttons.MENU and Color3.fromRGB(45, 45, 45) or Color3.new(0, 0, 0)
+	for _, button in pairs(Buttons:GetChildren()) do
+		if button:IsA("TextButton") then
+			button.BackgroundColor3 = button == activeButton and Color3.fromRGB(45, 45, 45) or Color3.new(0, 0, 0)
+		end
+	end
 end
 
+-- Button Connections
 Buttons.TURFS.MouseButton1Click:Connect(function()
 	Frames.TURFS.Visible = true
 	Frames.CREATE.Visible = false
@@ -44,6 +39,7 @@ Buttons.CREATE.MouseButton1Click:Connect(function()
 	Frames.CREATE.Visible = true
 	Frames.JOIN.Visible = false
 	setButtonColors(Buttons.CREATE)
+	debugPrint("CREATE button clicked - UI switched to CREATE frame")
 end)
 
 Buttons.MENU.MouseButton1Click:Connect(function()
@@ -53,138 +49,138 @@ Buttons.MENU.MouseButton1Click:Connect(function()
 	setButtonColors(Buttons.MENU)
 end)
 
-local function colorWheel(colourWheel, wheelPicker, darknessPicker, darknessSlider, colourDisplay)
-	local uis = game:GetService("UserInputService")
-	local buttonDown = false
-	local movingSlider = false
-
-	local selectedColor = Color3.new(1, 1, 1)
-
-	local function updateColour(centreOfWheel)
-		local colourPickerCentre = Vector2.new(wheelPicker.AbsolutePosition.X + (wheelPicker.AbsoluteSize.X / 2),
-			wheelPicker.AbsolutePosition.Y + (wheelPicker.AbsoluteSize.Y / 2))
-		local h =
-			(math.pi - math.atan2(colourPickerCentre.Y - centreOfWheel.Y, colourPickerCentre.X - centreOfWheel.X)) /
-			(math.pi * 2)
-		local s = (centreOfWheel - colourPickerCentre).Magnitude / (colourWheel.AbsoluteSize.X / 2)
-		local v = math.abs((darknessSlider.AbsolutePosition.Y - darknessPicker.AbsolutePosition.Y) /
-			darknessPicker.AbsoluteSize.Y - 1)
-		local hsv = Color3.fromHSV(math.clamp(h, 0, 1), math.clamp(s, 0, 1), math.clamp(v, 0, 1))
-		colourDisplay.ImageColor3 = hsv
-		selectedColor = hsv
-		darknessPicker.UIGradient.Color = ColorSequence.new {ColorSequenceKeypoint.new(0, hsv),
-			ColorSequenceKeypoint.new(1, Color3.new(0, 0, 0))}
-	end
-
-	colourWheel.MouseButton1Down:Connect(function()
-		buttonDown = true
-	end)
-
-	darknessPicker.MouseButton1Down:Connect(function()
-		movingSlider = true
-	end)
-
-	uis.InputEnded:Connect(function(input)
-		if input.UserInputType ~= Enum.UserInputType.MouseButton1 then
-			return
-		end
-		buttonDown = false
-		movingSlider = false
-	end)
-
-	uis.InputChanged:Connect(function(input)
-		if input.UserInputType ~= Enum.UserInputType.MouseMovement then
-			return
-		end
-		local mousePos = uis:GetMouseLocation() - Vector2.new(0, game:GetService("GuiService"):GetGuiInset().Y)
-		local centreOfWheel = Vector2.new(colourWheel.AbsolutePosition.X + (colourWheel.AbsoluteSize.X / 2),
-			colourWheel.AbsolutePosition.Y + (colourWheel.AbsoluteSize.Y / 2))
-		local distanceFromWheel = (mousePos - centreOfWheel).Magnitude
-		if distanceFromWheel <= colourWheel.AbsoluteSize.X / 2 and buttonDown then
-			wheelPicker.Position = UDim2.new(0, mousePos.X - colourWheel.AbsolutePosition.X, 0,
-				mousePos.Y - colourWheel.AbsolutePosition.Y)
-		elseif movingSlider then
-			darknessSlider.Position = UDim2.new(darknessSlider.Position.X.Scale, 0, 0, math.clamp(
-				mousePos.Y - darknessPicker.AbsolutePosition.Y, 0, darknessPicker.AbsoluteSize.Y))
-		end
-		updateColour(centreOfWheel)
-	end)
-
-	return function()
-		return selectedColor
-	end
-end
-local function createGang()
+-- Gang Creation Functionality
+local function setupGangCreation()
 	local CREATEFrame = Frames.CREATE
 	local groupIdInput = CREATEFrame:WaitForChild("ID")
 	local groupImg = CREATEFrame:WaitForChild("IMG")
 	local groupName = groupImg:WaitForChild("GroupName")
-	local colourWheel = CREATEFrame:WaitForChild("ColourWheel")
-	local wheelPicker = colourWheel:WaitForChild("Picker")
-	local darknessPicker = CREATEFrame:WaitForChild("DarknessPicker")
-	local darknessSlider = darknessPicker:WaitForChild("Slider")
-	local colourDisplay = CREATEFrame:WaitForChild("ColourDisplay")
 	local createButton = CREATEFrame:WaitForChild("Create")
+	local availableColors = CREATEFrame:WaitForChild("AvailableColors")
 
-	-- Setup color wheel and get a function to retrieve the selected color
-	local getSelectedColor = colorWheel(colourWheel, wheelPicker, darknessPicker, darknessSlider, colourDisplay)
+	local selectedBrickColor = nil
 
-	-- Display group logo when Enter is pressed in groupIdInput
+	-- Populate available BrickColors from external module
+	local GangColorPalette = require(script.Parent:WaitForChild("GangColorPalette"))
+	local function populateAvailableColors()
+		debugPrint("populateAvailableColors started")
+		if not availableColors then
+			warn("availableColors is nil!")
+			return
+		end
+
+		local children = availableColors:GetChildren()
+		debugPrint("Children count:", #children)
+
+		for i, child in ipairs(children) do
+			debugPrint(string.format("Child %d: %s", i, child.Name))
+			if child:IsA("TextButton") or child:IsA("Frame") then
+				child:Destroy()
+			end
+		end
+
+		debugPrint("GangColorPalette count:", #GangColorPalette)
+
+		for i, name in ipairs(GangColorPalette) do
+			local success, bc = pcall(function() return BrickColor.new(name) end)
+			if not success or not bc then
+				warn("BrickColor '"..name.."' is invalid or not found!")
+			else
+				local colorButton = Instance.new("TextButton")
+				colorButton.Size = UDim2.new(1, 0, 0, 30)
+				colorButton.BackgroundColor3 = bc.Color
+				colorButton.Text = bc.Name
+				colorButton.TextColor3 = Color3.new(1, 1, 1)
+				colorButton.Font = Enum.Font.SourceSans
+				colorButton.TextSize = 14
+				colorButton.Parent = availableColors
+
+				colorButton.MouseButton1Click:Connect(function()
+					selectedBrickColor = bc
+					debugPrint("Selected BrickColor:", bc.Name)
+				end)
+			end
+		end
+
+		debugPrint("Available BrickColors populated")
+	end
+
+
+	-- Group ID input handler
 	groupIdInput.FocusLost:Connect(function(enterPressed)
 		if enterPressed then
 			local groupId = groupIdInput.Text
 			local groupIdNum = tonumber(groupId)
 			if groupIdNum then
-				-- Use Roblox's group thumbnail asset id
-				groupImg.Image = "rbxthumb://type=GroupIcon&id=" .. groupIdNum .. "&w=150&h=150"
-				-- Request group name from server
-				local remoteFunction = game:GetService("ReplicatedStorage"):WaitForChild("GetGroupName")
+				groupImg.Image = "rbxthumb://type=GroupIcon&id="..groupIdNum.."&w=150&h=150"
+				local remoteFunction = ReplicatedStorage:WaitForChild("GetGroupName")
 				local groupNameResult = remoteFunction:InvokeServer(groupIdNum)
-				print("[DEBUG] GroupNameResult from server:", groupNameResult)
 				groupName.Text = groupNameResult or "Group Name Not Found"
+				debugPrint("Group info loaded for ID:", groupIdNum)
 			else
 				groupImg.Image = ""
 				groupName.Text = "Invalid Group ID"
+				debugPrint("Invalid group ID entered")
 			end
 		end
 	end)
 
+	-- Create button handler
 	createButton.MouseButton1Click:Connect(function()
+		debugPrint("Create button clicked - Starting gang creation process")
+
 		local groupId = groupIdInput.Text
 		local name = groupName.Text
-		local colour = getSelectedColor()
 
+		-- Input validation
 		if groupId == "" or name == "" then
-			warn("Group ID and Name cannot be empty.")
+			debugPrint("Validation failed - Empty fields")
 			return
 		end
 
-		-- Set group image from groupId
 		local groupIdNum = tonumber(groupId)
-		if groupIdNum then
-			-- Roblox group thumbnail API
-			local thumbUrl = string.format("https://www.roblox.com/groups/%d/render?size=150x150", groupIdNum)
-			groupImg.Image = thumbUrl
-		else
-			groupImg.Image = "" -- fallback if not a valid number
+		if not groupIdNum then
+			debugPrint("Validation failed - Invalid Group ID")
+			return
 		end
 
-		-- Request gang creation from server, send color as Color3
-		local GangRemoteEvent = ReplicatedStorage:WaitForChild("GangRemoteEvent")
-		GangRemoteEvent:FireServer("CreateGang", name, {r = colour.R, g = colour.G, b = colour.B})
+		if not selectedBrickColor then
+			debugPrint("Validation failed - No BrickColor selected")
+			return
+		end
+
+		debugPrint(string.format("Attempting to create gang - Name: %s, ID: %d, BrickColor: %s", 
+			name, groupIdNum, selectedBrickColor.Name))
+
+		-- Fire to server
+		GangRemoteEvent:FireServer("CreateGang", {
+			name = name,
+			groupId = groupIdNum,
+			color = {
+				r = selectedBrickColor.Color.R,
+				g = selectedBrickColor.Color.G,
+				b = selectedBrickColor.Color.B
+			}
+		})
 	end)
 
-	-- Listen for gang creation result
-	local GangRemoteEvent = ReplicatedStorage:WaitForChild("GangRemoteEvent")
+	-- Handle server responses
 	GangRemoteEvent.OnClientEvent:Connect(function(eventType, data)
+		debugPrint("Received server event:", eventType, data)
+
 		if eventType == "GangCreated" then
-			print("Gang created successfully:", data)
-			-- Optionally, update the UI or notify the player
+			debugPrint("Gang created successfully!")
+			GangMenu.Enabled = false
+			Players.LocalPlayer:LoadCharacter()
 		elseif eventType == "GangCreateFailed" then
-			warn("Failed to create gang:", data)
-			-- Optionally, show error to user
+			debugPrint("Gang creation failed:", data)
 		end
 	end)
+
+	-- Call this once to populate colors
+	populateAvailableColors()
 end
 
-createGang()
+-- Initialize
+setupGangCreation()
+debugPrint("Gang creation system initialized")
