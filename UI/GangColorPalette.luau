@@ -1,5 +1,3 @@
-
--- Returns a list of BrickColor names for gang creation UI, excluding those used in GroupIds
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local remote = ReplicatedStorage:WaitForChild("GetExcludedGangColors")
 local excludedColorsList = remote:InvokeServer()
