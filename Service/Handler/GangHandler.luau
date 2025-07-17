@@ -1,100 +1,41 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Gang = require(ReplicatedStorage:WaitForChild("Classes"):WaitForChild("Gang"))
+local Teams = game:GetService("Teams")
+local GroupService = game:GetService("GroupService")
+local Players = game:GetService("Players")
+
 local GangHandler = {}
-local GangRemoteEvent = "GangRemoteEvent"
--- Ensure the RemoteEvent exists
-local remoteEvent = ReplicatedStorage:FindFirstChild(GangRemoteEvent)
+GangHandler.__index = GangHandler
+
+-- ================
+-- Dependencies
+-- ================
+local Gang = require(ReplicatedStorage:WaitForChild("Classes"):WaitForChild("Gang"))
+local GroupIds = require(ReplicatedStorage:WaitForChild("GroupIds"))
+
+-- ================
+-- Configuration
+-- ================
+local REMOTE_EVENT_NAME = "GangRemoteEvent"
+local DEBUG_PREFIX = "[GangHandler]"
+
+-- Ensure RemoteEvent exists
+local remoteEvent = ReplicatedStorage:FindFirstChild(REMOTE_EVENT_NAME)
 if not remoteEvent then
 	remoteEvent = Instance.new("RemoteEvent")
-	remoteEvent.Name = GangRemoteEvent
+	remoteEvent.Name = REMOTE_EVENT_NAME
 	remoteEvent.Parent = ReplicatedStorage
 end
 
-
-local GangHandler = {}
-
--- Listen for gang creation requests from client
-remoteEvent.OnServerEvent:Connect(function(player, action, ...)
-	if action == "CreateGang" then
-		local groupName, color = ...
-		-- Use player's UserId as leader
-		local gang, status = GangHandler:CreateGang(groupName, color, player)
-		if status == "ReservedColor" then
-			remoteEvent:FireClient(player, "GangCreateFailed", "ReservedColor")
-		elseif status == "TeamExists" then
-			remoteEvent:FireClient(player, "GangCreateFailed", "TeamExists")
-		elseif status == "Success" then
-			remoteEvent:FireClient(player, "GangCreated", gang:GetInfo())
-		else
-			remoteEvent:FireClient(player, "GangCreateFailed", "UnknownError")
-		end
-		return
-	end
-
-	-- ...existing code for other actions...
-	local gangHandler = require(ReplicatedStorage:WaitForChild("Handler"):WaitForChild("GangHandler"))
-	local gang = gangHandler:GetGangByPlayer(player)
-
-	if not gang then
-		warn("Player " .. player.Name .. " is not in a gang.")
-		return
-	end
-
-	if action == "AddMember" then
-		local member = ...
-		gangHandler:AddMember(gang, member)
-	elseif action == "RemoveMember" then
-		local member = ...
-		gangHandler:RemoveMember(gang, member)
-	elseif action == "SetLeader" then
-		local newLeader = ...
-		gangHandler:SetLeader(gang, newLeader)
-	elseif action == "GetInfo" then
-		return gangHandler:GetGangInfo(gang)
-	end
-end)
-
--- Update the gang info in ReplicatedStorage
-local function updateGangInfo(gang)
-	local gangFolder = ReplicatedStorage:FindFirstChild("Gangs")
-	if not gangFolder then
-		gangFolder = Instance.new("Folder")
-		gangFolder.Name = "Gangs"
-		gangFolder.Parent = ReplicatedStorage
-	end
-
-	local gangInfo = gang:GetInfo()
-	local gangInstance = gangFolder:FindFirstChild(gangInfo.Name)
-
-	if not gangInstance then
-		gangInstance = Instance.new("Folder")
-		gangInstance.Name = gangInfo.Name
-		gangInstance.Parent = gangFolder
-	end
-
-	-- Update leader and members
-	local leaderValue = Instance.new("ObjectValue")
-	leaderValue.Name = "Leader"
-	leaderValue.Value = gangInfo.Leader
-	leaderValue.Parent = gangInstance
-
-	local membersFolder = Instance.new("Folder")
-	membersFolder.Name = "Members"
-	membersFolder.Parent = gangInstance
-
-	for _, member in ipairs(gangInfo.Members) do
-		local memberValue = Instance.new("ObjectValue")
-		memberValue.Name = member.Name
-		memberValue.Value = member
-		memberValue.Parent = membersFolder
-	end
+-- ================
+-- Utility Functions
+-- ================
+local function debugLog(...)
+	print(DEBUG_PREFIX, ...)
 end
 
--- Utility to get reserved team colors from GroupIds
 local function getReservedColors()
 	local reserved = {}
-	local groupIDs = require(ReplicatedStorage:WaitForChild("GroupIds"))
-	for _, group in pairs(groupIDs) do
+	for _, group in pairs(GroupIds) do
 		for _, entry in pairs(group) do
 			if entry.TEAM then
 				reserved[entry.TEAM] = true
@@ -104,110 +45,244 @@ local function getReservedColors()
 	return reserved
 end
 
--- Create a gang/team with group name and color, preventing reserved colors
-function GangHandler:CreateGang(groupName, color, leader)
-	local reservedColors = getReservedColors()
-	if reservedColors[color] then
-		warn("Cannot create gang with reserved color: " .. tostring(color))
-		return nil, "ReservedColor"
+local function updateGangInfoInStorage(gang)
+	local gangFolder = ReplicatedStorage:FindFirstChild("Gangs")
+	if not gangFolder then
+		gangFolder = Instance.new("Folder")
+		gangFolder.Name = "Gangs"
+		gangFolder.Parent = ReplicatedStorage
+	end
+
+	local gangInfo = gang:GetInfo()
+	local gangInstance = gangFolder:FindFirstChild(gangInfo.Name)
+	if not gangInstance then
+		gangInstance = Instance.new("Folder")
+		gangInstance.Name = gangInfo.Name
+		gangInstance.Parent = gangFolder
+	else
+		gangInstance:ClearAllChildren()
+	end
+
+	-- Leader
+	local leaderValue = Instance.new("ObjectValue")
+	leaderValue.Name = "Leader"
+	leaderValue.Value = gangInfo.Leader
+	leaderValue.Parent = gangInstance
+
+	-- Members
+	local membersFolder = Instance.new("Folder")
+	membersFolder.Name = "Members"
+	membersFolder.Parent = gangInstance
+	for _, member in ipairs(gangInfo.Members) do
+		local memberValue = Instance.new("ObjectValue")
+		memberValue.Name = member.Name
+		memberValue.Value = member
+		memberValue.Parent = membersFolder
+	end
+end
+
+local function validateGangName(name)
+	if type(name) ~= "string" or #name < 2 then
+		return false, "Gang name must be at least 2 characters"
+	end
+	if Teams:FindFirstChild(name) then
+		return false, "Gang name already exists"
+	end
+	return true
+end
+
+local function validateColor(colorTable)
+	if typeof(colorTable) ~= "table" then
+		return false, "Invalid color data"
+	end
+	local r, g, b = colorTable.r, colorTable.g, colorTable.b
+	if type(r) ~= "number" or type(g) ~= "number" or type(b) ~= "number" then
+		return false, "Invalid color components"
+	end
+	return true, Color3.new(r, g, b)
+end
+
+-- ================
+-- GangHandler API
+-- ================
+function GangHandler.new()
+	local self = setmetatable({}, GangHandler)
+	self._remoteEvent = remoteEvent
+	self._reservedColors = getReservedColors()
+	self._gangs = {} -- In-memory cache of gang objects
+	return self
+end
+
+function GangHandler:Init()
+	debugLog("Initializing RemoteEvent listener")
+	self._remoteEvent.OnServerEvent:Connect(function(player, action, data)
+		self:HandleRequest(player, action, data)
+	end)
+end
+
+function GangHandler:HandleRequest(player, action, data)
+	debugLog("Handling", action, "request from", player.Name)
+
+	local handler = self["Handle"..action]
+	if handler then
+		handler(self, player, data)
+	else
+		debugLog("Unknown action:", action)
+		self._remoteEvent:FireClient(player, action.."Failed", "Unknown action")
+	end
+end
+
+function GangHandler:HandleCreateGang(player, data)
+	debugLog("[CreateGang] Incoming data:", data)
+
+	-- Basic validation
+	if typeof(data) ~= "table" then
+		debugLog("[CreateGang] Invalid data type")
+		return self._remoteEvent:FireClient(player, "GangCreateFailed", "Invalid data")
+	end
+
+	local name = data.name
+	local groupId = data.groupId
+	local colorTable = data.color
+
+	-- Validate name
+	local nameValid, nameError = validateGangName(name)
+	if not nameValid then
+		debugLog("[CreateGang] Invalid name:", nameError)
+		return self._remoteEvent:FireClient(player, "GangCreateFailed", nameError)
+	end
+
+	-- Validate groupId
+	if type(groupId) ~= "number" then
+		debugLog("[CreateGang] Invalid groupId")
+		return self._remoteEvent:FireClient(player, "GangCreateFailed", "Invalid groupId")
+	end
+
+	-- Validate color
+	local colorValid, colorOrError = validateColor(colorTable)
+	if not colorValid then
+		debugLog("[CreateGang] Invalid color:", colorOrError)
+		return self._remoteEvent:FireClient(player, "GangCreateFailed", colorOrError)
+	end
+
+	-- Check for reserved color
+	if self._reservedColors[colorOrError] then
+		debugLog("[CreateGang] Reserved color")
+		return self._remoteEvent:FireClient(player, "GangCreateFailed", "ReservedColor")
 	end
 
 	-- Create Roblox Team
-	local Teams = game:GetService("Teams")
-	if Teams:FindFirstChild(groupName) then
-		warn("Team already exists: " .. groupName)
-		return nil, "TeamExists"
-	end
-	local team = Instance.new("Team")
-	team.Name = groupName
-	team.TeamColor = BrickColor.new(color)
-	team.AutoAssignable = false
-	team.Parent = Teams
+	local newTeam = Instance.new("Team")
+	newTeam.Name = name
+	newTeam.TeamColor = BrickColor.new(colorOrError)
+	newTeam.Parent = Teams
+	player.Team = newTeam
 
-	-- Retrieve group name using GroupService:GetGroupsAsync
-	local groupIdNum = tonumber(groupName)
-	local groupNameResult = nil
-	if groupIdNum and leader and leader.UserId then
-		local success, groups = pcall(function()
-			return game:GetService("GroupService"):GetGroupsAsync(leader.UserId)
-		end)
-		print("[GROUP INFO DEBUG] GetGroupsAsync success:", success)
-		print("[GROUP INFO DEBUG] Groups:", groups)
-		if success and type(groups) == "table" then
-			for _, group in pairs(groups) do
-				if group.Id == groupIdNum then
-					groupNameResult = group.Name
-					print("[GROUP INFO DEBUG] Found group name:", groupNameResult)
+	-- Create Gang object
+	local gang = Gang.new(player, {})
+	gang.Name = name
+	gang.Color = colorOrError
+	self._gangs[name] = gang -- Cache the gang object
+
+	-- Update storage and notify clients
+	updateGangInfoInStorage(gang)
+	self._remoteEvent:FireClient(player, "GangCreated", gang:GetInfo())
+	self._remoteEvent:FireAllClients("RefreshGangList")
+
+	debugLog("Gang created:", name)
+end
+
+function GangHandler:HandleJoinGang(player, data)
+	debugLog("[JoinGang] Incoming data:", data)
+
+	if typeof(data) ~= "table" then
+		debugLog("[JoinGang] Invalid data")
+		return self._remoteEvent:FireClient(player, "GangJoinFailed", "Invalid data")
+	end
+
+	local groupId = data.groupId
+	local colorTable = data.color
+	local groupName = nil
+	local targetTeam = nil
+
+	-- Try to find by groupId first
+	if type(groupId) == "number" then
+		debugLog("[JoinGang] Searching by groupId:", groupId)
+		for name, group in pairs(GroupIds) do
+			if group.GROUP_ID == groupId then
+				groupName = name
+				debugLog("[JoinGang] Found matching group:", groupName)
+				break
+			end
+		end
+
+		if groupName then
+			targetTeam = Teams:FindFirstChild(groupName)
+			if targetTeam then
+				debugLog("[JoinGang] Found team by group name")
+			end
+		end
+	end
+
+	-- Fallback to name search
+	if not targetTeam and type(data.name) == "string" then
+		debugLog("[JoinGang] Fallback to name search:", data.name)
+		targetTeam = Teams:FindFirstChild(data.name)
+	end
+
+	-- Fallback to color search
+	if not targetTeam and colorTable then
+		local colorValid, color = validateColor(colorTable)
+		if colorValid then
+			debugLog("[JoinGang] Searching by color")
+			for _, team in pairs(Teams:GetTeams()) do
+				if team.TeamColor.Color == color then
+					targetTeam = team
 					break
 				end
 			end
 		end
 	end
-	if not groupNameResult then
-		print("[GROUP INFO DEBUG] Group name not found for groupId:", groupIdNum)
-	end
 
-	-- Create gang object
-	local gang = Gang.new(leader, {})
-	gang.Name = groupName
-	gang.Color = color
-	updateGangInfo(gang)
-	remoteEvent:FireAllClients("GangCreated", gang:GetInfo())
-	return gang, "Success"
-end
-
-function GangHandler:AddMember(gang, player)
-	if gang:IsMember(player) then
-		warn(player.Name .. " is already a member of the gang: " .. gang.Name)
-		return false
-	end
-	gang:AddMember(player)
-	updateGangInfo(gang)
-	remoteEvent:FireAllClients("MemberAdded", gang:GetInfo(), player.UserId)
-	return true
-end
-
-function GangHandler:RemoveMember(gang, player)
-	if not gang:IsMember(player) then
-		warn(player.Name .. " is not a member of the gang: " .. gang.Name)
-		return false
-	end
-	gang:RemoveMember(player)
-	updateGangInfo(gang)
-	remoteEvent:FireAllClients("MemberRemoved", gang:GetInfo(), player.UserId)
-	return true
-end
-
-function GangHandler:SetLeader(gang, player)
-	if not gang:IsMember(player) then
-		warn(player.Name .. " is not a member of the gang: " .. gang.Name)
-		return false
-	end
-	gang:SetLeader(player)
-	updateGangInfo(gang)
-	remoteEvent:FireAllClients("LeaderChanged", gang:GetInfo(), player.UserId)
-	return true
-end
-
-function GangHandler:GetGangInfo(gang)
-	return gang:GetInfo()
-end
-
-function GangHandler:GetAllGangs()
-	local gangs = {}
-	local gangFolder = ReplicatedStorage:FindFirstChild("Gangs")
-	if gangFolder then
-		for _, gang in pairs(gangFolder:GetChildren()) do
-			if gang:IsA("Folder") then
-				local leader = gang:FindFirstChild("Leader")
-				local members = gang:FindFirstChild("Members")
-				local memberList = members and members:GetChildren() or {}
-				local gangInfo = Gang.new(leader and leader.Value, memberList)
-				table.insert(gangs, gangInfo:GetInfo())
-			end
+	-- Handle no team found
+	if not targetTeam then
+		local errorMsg = "No matching gang found"
+		if groupName then
+			errorMsg = "No gang found for group: "..groupName
+		elseif data.name then
+			errorMsg = "No gang found with name: "..data.name
 		end
+		debugLog("[JoinGang]", errorMsg)
+		return self._remoteEvent:FireClient(player, "GangJoinFailed", errorMsg)
 	end
-	return gangs
+
+	-- Success case
+	player.Team = targetTeam
+	local teamColor = targetTeam.TeamColor.Color
+	self._remoteEvent:FireClient(player, "GangJoined", {
+		name = targetTeam.Name,
+		color = {
+			r = teamColor.R,
+			g = teamColor.G,
+			b = teamColor.B
+		}
+	})
+	debugLog(player.Name, "joined gang", targetTeam.Name)
+end
+
+function GangHandler:AddMember(player, member)
+	debugLog("AddMember called for", player.Name, "adding", member and member.Name)
+	-- Implementation would go here
+end
+
+function GangHandler:RemoveMember(player, member)
+	debugLog("RemoveMember called for", player.Name, "removing", member and member.Name)
+	-- Implementation would go here
+end
+
+function GangHandler:SetLeader(player, newLeader)
+	debugLog("SetLeader called for", player.Name, "new leader", newLeader and newLeader.Name)
+	-- Implementation would go here
 end
 
 return GangHandler

@@ -1,229 +1,231 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
-local GroupService = game:GetService("GroupService")
+local player = Players.LocalPlayer
 
--- Debugging function
-local function debugPrint(...)
-    print("[Gang Creation Debug]", ...)
-end
+-- Constants
+local DEBUG_PREFIX = "[Gang Creation Debug]"
+local DEFAULT_BUTTON_COLOR = Color3.new(0, 0, 0)
+local ACTIVE_BUTTON_COLOR = Color3.fromRGB(45, 45, 45)
 
--- UI Setup
+-- Cache frequently used objects
 local GangMenu = script.Parent
 local Buttons = GangMenu:WaitForChild("Buttons")
 local Frames = GangMenu:WaitForChild("Menu")
 
--- Ensure RemoteEvent exists
-local GangRemoteEvent = ReplicatedStorage:FindFirstChild("GangRemoteEvent") or Instance.new("RemoteEvent")
-GangRemoteEvent.Name = "GangRemoteEvent"
-GangRemoteEvent.Parent = ReplicatedStorage
+-- Initialize RemoteEvent
+local GangRemoteEvent = ReplicatedStorage:WaitForChild("GangRemoteEvent")
 
--- UI Visibility Management
+-- Debug function
+local function debugPrint(...)
+	print(DEBUG_PREFIX, ...)
+end
+
+-- UI Management
 local function setButtonColors(activeButton)
-    for _, button in pairs(Buttons:GetChildren()) do
-        if button:IsA("TextButton") then
-            button.BackgroundColor3 = button == activeButton and Color3.fromRGB(45, 45, 45) or Color3.new(0, 0, 0)
-        end
-    end
+	for _, button in ipairs(Buttons:GetChildren()) do
+		if button:IsA("TextButton") then
+			button.BackgroundColor3 = button == activeButton and ACTIVE_BUTTON_COLOR or DEFAULT_BUTTON_COLOR
+		end
+	end
 end
 
--- Button Connections
-Buttons.TURFS.MouseButton1Click:Connect(function()
-    Frames.TURFS.Visible = true
-    Frames.CREATE.Visible = false
-    Frames.JOIN.Visible = false
-    setButtonColors(Buttons.TURFS)
-end)
+local function showFrame(frameToShow)
+	for _, frame in ipairs(Frames:GetChildren()) do
+		if frame:IsA("Frame") then
+			frame.Visible = frame == frameToShow
+		end
+	end
+end
 
-Buttons.CREATE.MouseButton1Click:Connect(function()
-    Frames.TURFS.Visible = false
-    Frames.CREATE.Visible = true
-    Frames.JOIN.Visible = false
-    setButtonColors(Buttons.CREATE)
-    debugPrint("CREATE button clicked - UI switched to CREATE frame")
-end)
+-- Button connections
+local function setupButtonConnections()
+	local buttonHandlers = {
+		[Buttons.TURFS] = function()
+			showFrame(Frames.TURFS)
+			setButtonColors(Buttons.TURFS)
+		end,
+		[Buttons.CREATE] = function()
+			showFrame(Frames.CREATE)
+			setButtonColors(Buttons.CREATE)
+			debugPrint("UI switched to CREATE frame")
+		end,
+		[Buttons.MENU] = function()
+			showFrame(Frames.JOIN)
+			setButtonColors(Buttons.MENU)
+		end
+	}
 
-Buttons.MENU.MouseButton1Click:Connect(function()
-    Frames.TURFS.Visible = false
-    Frames.CREATE.Visible = false
-    Frames.JOIN.Visible = true
-    setButtonColors(Buttons.MENU)
-end)
+	for button, handler in pairs(buttonHandlers) do
+		button.MouseButton1Click:Connect(handler)
+	end
+end
 
--- Gang Creation Functionality
+-- Gang Creation
 local function setupGangCreation()
-    local CREATEFrame = Frames.CREATE
-    local groupIdInput = CREATEFrame:WaitForChild("ID")
-    local groupImg = CREATEFrame:WaitForChild("IMG")
-    local groupName = groupImg:WaitForChild("GroupName")
-    local createButton = CREATEFrame:WaitForChild("Create")
-    local availableColors = CREATEFrame:WaitForChild("AvailableColors")
+	local CREATEFrame = Frames.CREATE
+	local groupIdInput = CREATEFrame:WaitForChild("ID")
+	local groupImg = CREATEFrame:WaitForChild("IMG")
+	local groupName = groupImg:WaitForChild("GroupName")
+	local createButton = CREATEFrame:WaitForChild("Create")
+	local availableColors = CREATEFrame:WaitForChild("AvailableColors")
+	local selectedBrickColor = nil
 
-    local selectedBrickColor = nil
+	-- Color selection
+	local function createColorButton(brickColor)
+		local colorButton = Instance.new("TextButton")
+		colorButton.Size = UDim2.new(1, 0, 0, 30)
+		colorButton.BackgroundColor3 = brickColor.Color
+		colorButton.Text = brickColor.Name
+		colorButton.TextColor3 = Color3.new(1, 1, 1)
+		colorButton.Font = Enum.Font.SourceSans
+		colorButton.TextSize = 14
 
-    -- Populate available BrickColors from external module
-    local GangColorPalette = require(ReplicatedStorage.UI.GangColorPalette)
-    local function populateAvailableColors()
-        debugPrint("populateAvailableColors started")
-        if not availableColors then
-            warn("availableColors is nil!")
-            return
-        end
+		colorButton.MouseButton1Click:Connect(function()
+			selectedBrickColor = brickColor
+			debugPrint("Selected BrickColor:", brickColor.Name)
+		end)
 
-        local children = availableColors:GetChildren()
-        debugPrint("Children count:", #children)
+		return colorButton
+	end
 
-        for i, child in ipairs(children) do
-            debugPrint(string.format("Child %d: %s", i, child.Name))
-            if child:IsA("TextButton") or child:IsA("Frame") then
-                child:Destroy()
-            end
-        end
+	local function populateAvailableColors()
+		debugPrint("Populating available colors")
+		availableColors:ClearAllChildren()
 
-        debugPrint("GangColorPalette count:", #GangColorPalette)
+		local GangColorPalette = require(ReplicatedStorage:WaitForChild("UI"):WaitForChild("GangColorPalette"))
+		for _, name in ipairs(GangColorPalette) do
+			local success, bc = pcall(BrickColor.new, name)
+			if success and bc then
+				createColorButton(bc).Parent = availableColors
+			end
+		end
+	end
 
-        for i, name in ipairs(GangColorPalette) do
-            local success, bc = pcall(function()
-                return BrickColor.new(name)
-            end)
-            if not success or not bc then
-                warn("BrickColor '" .. name .. "' is invalid or not found!")
-            else
-                local colorButton = Instance.new("TextButton")
-                colorButton.Size = UDim2.new(1, 0, 0, 30)
-                colorButton.BackgroundColor3 = bc.Color
-                colorButton.Text = bc.Name
-                colorButton.TextColor3 = Color3.new(1, 1, 1)
-                colorButton.Font = Enum.Font.SourceSans
-                colorButton.TextSize = 14
-                colorButton.Parent = availableColors
+	-- Group ID validation
+	local function validateGroupId(id)
+		local idNum = tonumber(id)
+		if not idNum then return false end
 
-                colorButton.MouseButton1Click:Connect(function()
-                    selectedBrickColor = bc
-                    debugPrint("Selected BrickColor:", bc.Name)
-                end)
-            end
-        end
+		-- Get group info from server
+		local success, result = pcall(function()
+			return ReplicatedStorage:WaitForChild("GetGroupName"):InvokeServer(idNum)
+		end)
 
-        debugPrint("Available BrickColors populated")
-    end
+		if success and result then
+			groupImg.Image = "rbxthumb://type=GroupIcon&id=" .. idNum .. "&w=150&h=150"
+			groupName.Text = result
+			return true
+		else
+			groupImg.Image = ""
+			groupName.Text = "Invalid Group ID"
+			return false
+		end
+	end
 
-    -- Group ID input handler
-    groupIdInput.FocusLost:Connect(function(enterPressed)
-        if enterPressed then
-            local groupId = groupIdInput.Text
-            local groupIdNum = tonumber(groupId)
-            if groupIdNum then
-                groupImg.Image = "rbxthumb://type=GroupIcon&id=" .. groupIdNum .. "&w=150&h=150"
-                local remoteFunction = ReplicatedStorage:WaitForChild("GetGroupName")
-                local groupNameResult = remoteFunction:InvokeServer(groupIdNum)
-                groupName.Text = groupNameResult or "Group Name Not Found"
-                debugPrint("Group info loaded for ID:", groupIdNum)
-            else
-                groupImg.Image = ""
-                groupName.Text = "Invalid Group ID"
-                debugPrint("Invalid group ID entered")
-            end
-        end
-    end)
+	groupIdInput.FocusLost:Connect(function(enterPressed)
+		if enterPressed then
+			validateGroupId(groupIdInput.Text)
+		end
+	end)
 
-    -- Create button handler
-    createButton.MouseButton1Click:Connect(function()
-        debugPrint("Create button clicked - Starting gang creation process")
+	-- Gang creation
+	createButton.MouseButton1Click:Connect(function()
+		debugPrint("Create button clicked")
 
-        local groupId = groupIdInput.Text
-        local name = groupName.Text
+		local groupId = tonumber(groupIdInput.Text)
+		local name = groupName.Text
 
-        -- Input validation
-        if groupId == "" or name == "" then
-            debugPrint("Validation failed - Empty fields")
-            return
-        end
+		if not groupId or name == "" or name == "Invalid Group ID" or not selectedBrickColor then
+			debugPrint("Validation failed - Missing required fields")
+			return
+		end
 
-        local groupIdNum = tonumber(groupId)
-        if not groupIdNum then
-            debugPrint("Validation failed - Invalid Group ID")
-            return
-        end
+		local colorData = selectedBrickColor.Color
+		debugPrint("Creating gang:", name, "Group ID:", groupId, "Color:", colorData)
 
-        if not selectedBrickColor then
-            debugPrint("Validation failed - No BrickColor selected")
-            return
-        end
+		GangRemoteEvent:FireServer("CreateGang", {
+			name = name,
+			groupId = groupId,
+			color = {
+				r = colorData.R,
+				g = colorData.G,
+				b = colorData.B
+			}
+		})
+	end)
 
-        debugPrint(string.format("Attempting to create gang - Name: %s, ID: %d, BrickColor: %s", name, groupIdNum,
-            selectedBrickColor.Name))
-
-        -- Fire to server
-        GangRemoteEvent:FireServer("CreateGang", {
-            name = name,
-            groupId = groupIdNum,
-            color = {
-                r = selectedBrickColor.Color.R,
-                g = selectedBrickColor.Color.G,
-                b = selectedBrickColor.Color.B
-            }
-        })
-    end)
-
-    -- Handle server responses
-    GangRemoteEvent.OnClientEvent:Connect(function(eventType, data)
-        debugPrint("Received server event:", eventType, data)
-
-        if eventType == "GangCreated" then
-            debugPrint("Gang created successfully!")
-            GangMenu.Visible = false
-            Players.LocalPlayer:LoadCharacter()
-        elseif eventType == "GangCreateFailed" then
-            debugPrint("Gang creation failed:", data)
-        end
-    end)
-
-    -- Call this once to populate colors
-    populateAvailableColors()
+	populateAvailableColors()
 end
 
-local function joinGang()
-    local JOINFrame = Frames.JOIN
-    local groupIdInput = JOINFrame:WaitForChild("GroupID")
-    local joinButton = JOINFrame:WaitForChild("Join")
+-- Gang Joining
+local function setupGangJoining()
+	local JOINFrame = Frames.JOIN
+	local groupIdInput = JOINFrame:WaitForChild("GroupID")
+	local joinButton = JOINFrame:WaitForChild("Join")
+	local statusLabel = JOINFrame:FindFirstChild("Status") or Instance.new("TextLabel")
 
-    -- Placeholder for join gang functionality
-    debugPrint("Join gang functionality not implemented yet")
+	-- Setup status label
+	statusLabel.Name = "Status"
+	statusLabel.Parent = JOINFrame
+	statusLabel.Text = ""
+	statusLabel.TextColor3 = Color3.new(1, 1, 1)
+	statusLabel.TextSize = 14
+	statusLabel.BackgroundTransparency = 1
+	statusLabel.Size = UDim2.new(1, 0, 0, 20)
 
-    -- Add functionality to join a gang here
-    if groupIdInput.Text == "" then
-        debugPrint("Group ID input is empty")
-        return
-    end
+	joinButton.MouseButton1Click:Connect(function()
+		local groupId = tonumber(groupIdInput.Text)
+		if not groupId then
+			statusLabel.Text = "Invalid Group ID"
+			return
+		end
 
-    local groupId = tonumber(groupIdInput.Text)
-    if not groupId then
-        debugPrint("Invalid Group ID entered:", groupIdInput.Text)
-        return
-    end
+		statusLabel.Text = "Verifying group..."
+		joinButton.Active = false
 
-    debugPrint("Attempting to join gang with Group ID:", groupId)
-    GangRemoteEvent:FireServer("JoinGang", {
-        groupId = groupId
-    })
+		-- Get group info from server
+		local success, groupName = pcall(function()
+			return ReplicatedStorage:WaitForChild("GetGroupName"):InvokeServer(groupId)
+		end)
 
-    debugPrint("Join gang request sent to server")
+		if not success or not groupName then
+			statusLabel.Text = "Invalid group"
+			joinButton.Active = true
+			return
+		end
 
-    -- Handle server response
-    GangRemoteEvent.OnClientEvent:Connect(function(eventType, data)
-        debugPrint("Received server event:", eventType, data)
+		debugPrint("Attempting to join gang:", groupName, "Group ID:", groupId)
+		GangRemoteEvent:FireServer("JoinGang", {
+			groupId = groupId,
+			groupName = groupName
+		})
+	end)
+end
 
-        if eventType == "GangJoined" then
-            debugPrint("Successfully joined gang!")
-            GangMenu.Enabled = false
-            Players.LocalPlayer:LoadCharacter()
-        elseif eventType == "GangJoinFailed" then
-            debugPrint("Failed to join gang:", data)
-        end
-    end)
+-- Server response handler
+local function setupServerHandlers()
+	GangRemoteEvent.OnClientEvent:Connect(function(eventType, data)
+		debugPrint("Server event:", eventType, data)
+
+		if eventType == "GangCreated" or eventType == "GangJoined" then
+			debugPrint("Success:", eventType)
+			GangMenu.Visible = false
+			player:LoadCharacter()
+		elseif eventType:find("Failed") then
+			debugPrint("Failed:", data)
+			local JOINFrame = Frames.JOIN
+			if JOINFrame and JOINFrame:FindFirstChild("Status") then
+				JOINFrame.Status.Text = data or "Unknown error"
+			end
+		elseif eventType == "RefreshGangList" then
+			debugPrint("Refreshing gang list")
+		end
+	end)
 end
 
 -- Initialize
+setupButtonConnections()
 setupGangCreation()
-joinGang()
-debugPrint("Gang creation system initialized")
+setupGangJoining()
+setupServerHandlers()
+debugPrint("System initialized")

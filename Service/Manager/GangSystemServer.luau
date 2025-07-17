@@ -1,64 +1,91 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local Teams = game:GetService("Teams")
-local HttpService = game:GetService("HttpService")
+local GroupService = game:GetService("GroupService")
 
--- Create RemoteEvent if it doesn't exist
+-- Initialize RemoteEvent
 local GangRemoteEvent = ReplicatedStorage:FindFirstChild("GangRemoteEvent") or Instance.new("RemoteEvent")
 GangRemoteEvent.Name = "GangRemoteEvent"
 GangRemoteEvent.Parent = ReplicatedStorage
 
--- Gang creation handler
-GangRemoteEvent.OnServerEvent:Connect(function(player, action, data)
-	if action ~= "CreateGang" then
-		return
+-- Initialize RemoteFunction for group info
+local GetGroupName = Instance.new("RemoteFunction")
+GetGroupName.Name = "GetGroupName"
+GetGroupName.Parent = ReplicatedStorage
+
+-- Debug logging
+local function debugLog(message)
+	print("[GangSystemServer] " .. message)
+end
+
+-- Gang data tracking
+local gangData = {
+	groupTeamMappings = {},
+	teamCreationTimes = {},
+	reservedColors = {}
+}
+
+-- Get group info from Roblox
+GetGroupName.OnServerInvoke = function(player, groupId)
+	local success, result = pcall(function()
+		return GroupService:GetGroupInfoAsync(groupId).Name
+	end)
+	return success and result or "Invalid Group ID"
+end
+
+-- Validate color
+local function isColorReserved(color)
+	for _, reserved in pairs(gangData.reservedColors) do
+		if reserved == color then
+			return true
+		end
 	end
+	return false
+end
 
-	print("[Server] Gang creation request from:", player.Name)
-
-	-- Validate request
+-- Handle gang creation
+local function handleCreateGang(player, data)
+	-- Validate input
 	if not data or typeof(data) ~= "table" then
-		GangRemoteEvent:FireClient(player, "GangCreateFailed", "Invalid data: not a table")
-		return
+		return false, "Invalid data"
 	end
 
 	if type(data.name) ~= "string" or #data.name < 2 then
-		GangRemoteEvent:FireClient(player, "GangCreateFailed", "Gang name must be at least 2 characters")
-		return
+		return false, "Gang name must be at least 2 characters"
 	end
 
 	if type(data.groupId) ~= "number" then
-		GangRemoteEvent:FireClient(player, "GangCreateFailed", "Invalid groupId")
-		return
+		return false, "Invalid group ID"
 	end
 
-	if not data.color or type(data.color) ~= "table" then
-		GangRemoteEvent:FireClient(player, "GangCreateFailed", "Invalid color data")
-		return
+	if not data.color or typeof(data.color) ~= "table" then
+		return false, "Invalid color data"
 	end
 
-	local r, g, b = data.color.r, data.color.g, data.color.b
-	if type(r) ~= "number" or type(g) ~= "number" or type(b) ~= "number" then
-		GangRemoteEvent:FireClient(player, "GangCreateFailed", "Invalid color components")
-		return
+	local color = Color3.new(data.color.r, data.color.g, data.color.b)
+	if isColorReserved(color) then
+		return false, "Color is reserved"
 	end
 
-	-- Check if gang exists
+	-- Check if team exists
 	if Teams:FindFirstChild(data.name) then
-		GangRemoteEvent:FireClient(player, "GangCreateFailed", "Gang name already exists")
-		return
+		return false, "Gang name already exists"
 	end
 
-	-- Create new Team
+	-- Create new team
 	local newTeam = Instance.new("Team")
 	newTeam.Name = data.name
-	newTeam.TeamColor = BrickColor.new(Color3.new(r, g, b))
+	newTeam.TeamColor = BrickColor.new(color)
 	newTeam.Parent = Teams
 
+	-- Update player team
 	player.Team = newTeam
 
-	-- Send success to client
-	GangRemoteEvent:FireClient(player, "GangCreated", {
+	-- Store mapping
+	gangData.groupTeamMappings[data.groupId] = newTeam
+	gangData.teamCreationTimes[newTeam] = os.time()
+
+	return true, {
 		name = data.name,
 		groupId = data.groupId,
 		color = {
@@ -66,9 +93,68 @@ GangRemoteEvent.OnServerEvent:Connect(function(player, action, data)
 			g = newTeam.TeamColor.Color.G,
 			b = newTeam.TeamColor.Color.B
 		}
-	})
+	}
+end
 
-	print(string.format("[Server] Gang '%s' created for %s (Color: %s)", data.name, player.Name, newTeam.TeamColor.Name))
+-- Handle gang joining
+local function handleJoinGang(player, data)
+	-- Validate input
+	if not data or typeof(data) ~= "table" then
+		return false, "Invalid data"
+	end
+
+	if not data.groupId or type(data.groupId) ~= "number" then
+		return false, "Invalid group ID"
+	end
+
+	if not data.groupName or type(data.groupName) ~= "string" then
+		return false, "Invalid group name"
+	end
+
+	-- Find team by mapping or name
+	local targetTeam = gangData.groupTeamMappings[data.groupId] or Teams:FindFirstChild(data.groupName)
+
+	if not targetTeam then
+		return false, "No gang found for this group"
+	end
+
+	-- Join team
+	player.Team = targetTeam
+
+	return true, {
+		name = targetTeam.Name,
+		groupId = data.groupId
+	}
+end
+
+-- Main event handler
+GangRemoteEvent.OnServerEvent:Connect(function(player, action, data)
+	local success, result
+
+	if action == "CreateGang" then
+		success, result = handleCreateGang(player, data)
+		if success then
+			GangRemoteEvent:FireClient(player, "GangCreated", result)
+			GangRemoteEvent:FireAllClients("RefreshGangList")
+		else
+			GangRemoteEvent:FireClient(player, "GangCreateFailed", result)
+		end
+	elseif action == "JoinGang" then
+		success, result = handleJoinGang(player, data)
+		if success then
+			GangRemoteEvent:FireClient(player, "GangJoined", result)
+		else
+			GangRemoteEvent:FireClient(player, "GangJoinFailed", result)
+		end
+	end
 end)
 
-print("GangSystemServer initialized")
+-- Initialize reserved colors
+local function initializeReservedColors()
+	for _, team in ipairs(Teams:GetTeams()) do
+		table.insert(gangData.reservedColors, team.TeamColor.Color)
+	end
+end
+
+initializeReservedColors()
+debugLog("System initialized")
