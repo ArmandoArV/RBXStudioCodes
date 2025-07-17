@@ -92,14 +92,40 @@ local function setupGangCreation()
 		debugPrint("Populating available colors")
 		availableColors:ClearAllChildren()
 
+		-- Ensure availableColors is a ScrollingFrame
+		if not availableColors:IsA("ScrollingFrame") then
+			warn("AvailableColors is not a ScrollingFrame! Please change it in Studio or script.")
+		end
+
+		-- Create or find UIListLayout
+		local uiListLayout = availableColors:FindFirstChildOfClass("UIListLayout")
+		if not uiListLayout then
+			uiListLayout = Instance.new("UIListLayout")
+			uiListLayout.Parent = availableColors
+			uiListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+			uiListLayout.Padding = UDim.new(0, 5)  -- optional spacing between buttons
+		end
+
 		local GangColorPalette = require(ReplicatedStorage:WaitForChild("UI"):WaitForChild("GangColorPalette"))
-		for _, name in ipairs(GangColorPalette) do
+		for index, name in ipairs(GangColorPalette) do
 			local success, bc = pcall(BrickColor.new, name)
 			if success and bc then
-				createColorButton(bc).Parent = availableColors
+				local btn = createColorButton(bc)
+				btn.LayoutOrder = index
+				btn.Parent = availableColors
+			else
+				warn("Invalid BrickColor name:", name)
 			end
 		end
+
+		-- Wait a tiny bit to let layout update
+		task.wait(0.1)
+
+		-- Update canvas size to fit all buttons
+		availableColors.CanvasSize = UDim2.new(0, 0, 0, uiListLayout.AbsoluteContentSize.Y + 10)
+		debugPrint("AvailableColors children count after populate:", #availableColors:GetChildren())
 	end
+
 
 	-- Group ID validation
 	local function validateGroupId(id)
@@ -162,16 +188,19 @@ local function setupGangJoining()
 	local JOINFrame = Frames.JOIN
 	local groupIdInput = JOINFrame:WaitForChild("GroupID")
 	local joinButton = JOINFrame:WaitForChild("Join")
-	local statusLabel = JOINFrame:FindFirstChild("Status") or Instance.new("TextLabel")
+	local statusLabel = JOINFrame:FindFirstChild("Status")
 
-	-- Setup status label
-	statusLabel.Name = "Status"
-	statusLabel.Parent = JOINFrame
-	statusLabel.Text = ""
-	statusLabel.TextColor3 = Color3.new(1, 1, 1)
-	statusLabel.TextSize = 14
-	statusLabel.BackgroundTransparency = 1
-	statusLabel.Size = UDim2.new(1, 0, 0, 20)
+	if not statusLabel then
+		statusLabel = Instance.new("TextLabel")
+		statusLabel.Name = "Status"
+		statusLabel.Parent = JOINFrame
+		statusLabel.Text = ""
+		statusLabel.TextColor3 = Color3.new(1, 1, 1)
+		statusLabel.TextSize = 14
+		statusLabel.BackgroundTransparency = 1
+		statusLabel.Size = UDim2.new(1, 0, 0, 20)
+		statusLabel.Position = UDim2.new(0, 0, 1, 5)
+	end
 
 	joinButton.MouseButton1Click:Connect(function()
 		local groupId = tonumber(groupIdInput.Text)
@@ -219,11 +248,12 @@ local function setupServerHandlers()
 			end
 		elseif eventType == "RefreshGangList" then
 			debugPrint("Refreshing gang list")
+			-- Implement refresh logic if needed
 		end
 	end)
 end
 
--- Initialize
+-- Initialize all
 setupButtonConnections()
 setupGangCreation()
 setupGangJoining()

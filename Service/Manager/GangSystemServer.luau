@@ -158,3 +158,43 @@ end
 
 initializeReservedColors()
 debugLog("System initialized")
+
+-- Full GetAvailableGangColors with debug logging
+local GetAvailableGangColors = Instance.new("RemoteFunction")
+GetAvailableGangColors.Name = "GetAvailableGangColors"
+GetAvailableGangColors.Parent = ReplicatedStorage
+
+local allGangColors = {
+	"Bright red", "Bright blue", "Bright yellow", "Bright green", "Black", "White", "Medium stone grey",
+	"Dark stone grey", "Really red", "Really blue", "Really black", "Really white", "Bright orange",
+	"Bright violet", "Bright yellowish green", "Bright bluish green", "Bright pink", "Bright purple"
+}
+
+local function getReservedColorNames()
+	local reserved = {}
+	for _, team in ipairs(Teams:GetTeams()) do
+		local name = team.Name
+		local colorName = team.TeamColor.Name
+		reserved[colorName] = true
+		print("[ReservedColor] Team:", name, "uses color:", colorName)
+	end
+	return reserved
+end
+
+GetAvailableGangColors.OnServerInvoke = function(player)
+	local reserved = getReservedColorNames()
+	local available = {}
+
+	for _, colorName in ipairs(allGangColors) do
+		if not reserved[colorName] then
+			table.insert(available, colorName)
+		end
+	end
+
+	print("[AvailableColors] Sending to client:")
+	for _, color in ipairs(available) do
+		print("-", color)
+	end
+
+	return available
+end
