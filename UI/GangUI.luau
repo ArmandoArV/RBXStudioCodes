@@ -259,3 +259,92 @@ setupGangCreation()
 setupGangJoining()
 setupServerHandlers()
 debugPrint("System initialized")
+
+-- Turf List UI
+
+
+local function populateTurfsUI()
+	   local ReplicatedStorage = game:GetService("ReplicatedStorage")
+	   local TurfsFrame = Frames:FindFirstChild("TURFS")
+	   if not TurfsFrame then warn("No TURFS frame found"); return end
+	   local Background = TurfsFrame:FindFirstChild("Background")
+	   if not Background then warn("No Background in TURFS frame"); return end
+
+	   -- Ensure Background is a ScrollingFrame
+	   if not Background:IsA("ScrollingFrame") then
+			   warn("Background is not a ScrollingFrame! Please change it in Studio.")
+	   end
+
+	   -- Clear previous
+	   for _, child in ipairs(Background:GetChildren()) do
+			   if child:IsA("Frame") then child:Destroy() end
+	   end
+
+	   -- Ensure UIListLayout exists
+	   local layout = Background:FindFirstChildOfClass("UIListLayout")
+	   if not layout then
+			   layout = Instance.new("UIListLayout")
+			   layout.Parent = Background
+			   layout.SortOrder = Enum.SortOrder.LayoutOrder
+			   layout.Padding = UDim.new(0, 6)
+	   end
+
+	   local folder = ReplicatedStorage:WaitForChild("CapturePoints")
+	   local capturePoints = folder:GetChildren()
+	   print("[TurfsUI] Found capture points:", #capturePoints)
+	   print("[TurfsUI] Children of Background:")
+	   for _, child in ipairs(Background:GetChildren()) do
+		   print("[TurfsUI] Child:", child.Name, child.ClassName)
+	   end
+	   local template = Background:FindFirstChild("FrameToDuplicate")
+	   if not template then warn("[TurfsUI] FrameToDuplicate not found in Background"); return end
+	   print("[TurfsUI] Found template FrameToDuplicate")
+
+	   local rowCount = 0
+	   for _, cpFolder in ipairs(capturePoints) do
+			   local name = cpFolder.Name
+			   local location = cpFolder:FindFirstChild("Location") and cpFolder.Location.Value or "?"
+			   local occupied = cpFolder:FindFirstChild("Occupied") and cpFolder.Occupied.Value or false
+			   local team = cpFolder:FindFirstChild("Team") and cpFolder.Team.Value or "None"
+			   print(string.format("[TurfsUI] Processing: name=%s, location=%s, occupied=%s, team=%s", tostring(name), tostring(location), tostring(occupied), tostring(team)))
+
+			   local row = template:Clone()
+			   row.Name = name .. "Row"
+			   row.Visible = true
+			   row.Parent = Background
+			   print("[TurfsUI] Cloned and parented row:", row.Name)
+
+			   local ownedBox = row:FindFirstChild("Owned")
+			   local payTitleBox = row:FindFirstChild("PayTitle")
+			   if ownedBox and ownedBox:IsA("TextBox") then
+				   ownedBox.Text = team ~= "None" and team or "Unoccupied"
+				   print("[TurfsUI] Set Owned text:", ownedBox.Text)
+			   else
+				   print("[TurfsUI] WARNING: Owned TextBox not found in row", row.Name)
+			   end
+			   if payTitleBox and payTitleBox:IsA("TextBox") then
+				   payTitleBox.Text = "Location: " .. location .. " | Occupied: " .. tostring(occupied)
+				   print("[TurfsUI] Set PayTitle text:", payTitleBox.Text)
+			   else
+				   print("[TurfsUI] WARNING: PayTitle TextBox not found in row", row.Name)
+			   end
+			   rowCount = rowCount + 1
+	   end
+	   print("[TurfsUI] Total rows created:", rowCount)
+
+	   -- Set CanvasSize for scrolling
+	   if Background:IsA("ScrollingFrame") and layout then
+			   Background.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
+	   end
+
+	   print("[TurfsUI] Rows created:", #(Background:GetChildren()))
+end
+
+-- Call populateTurfsUI when the TURFS frame is shown
+local oldShowFrame = showFrame
+showFrame = function(frameToShow)
+	oldShowFrame(frameToShow)
+	if frameToShow == Frames:FindFirstChild("TURFS") then
+		populateTurfsUI()
+	end
+end
