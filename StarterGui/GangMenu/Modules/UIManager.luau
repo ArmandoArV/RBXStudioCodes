@@ -1,77 +1,69 @@
 -- UIManager.lua
 local UIManager = {}
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local GangMenu = script.Parent.Parent
-local Background = GangMenu:WaitForChild("Background")
-local Buttons = Background:WaitForChild("Buttons")
-local Frames = Background:WaitForChild("Menu")
+UIManager.__index = UIManager
 
-local DEBUG_PREFIX = "[UIManager]"
+local DEFAULT_BUTTON_COLOR = Color3.new(0.2, 0.2, 0.2)
+local ACTIVE_BUTTON_COLOR = Color3.fromRGB(60, 120, 180)
 
-local DEFAULT_BUTTON_COLOR = Color3.new(0, 0, 0)
-local ACTIVE_BUTTON_COLOR = Color3.fromRGB(45, 45, 45)
-
-function UIManager:DebugPrint(...)
-    print(DEBUG_PREFIX, ...)
+function UIManager.new(gangMenu)
+	local self = setmetatable({}, UIManager)
+	self.GangMenu = gangMenu
+	self.Background = gangMenu:WaitForChild("Background")
+	self.Buttons = self.Background:WaitForChild("Buttons")
+	self.Frames = self.Background:WaitForChild("Menu")
+	return self
 end
 
-function UIManager.new()
-    local self = setmetatable({}, {
-        __index = UIManager
-    })
-    self.Frames = Frames
-    self.Buttons = Buttons
-    return self
+function UIManager:DebugPrint(...)
+	print("[UIManager]", ...)
 end
 
 function UIManager:SetButtonColors(activeButton)
-    for _, button in ipairs(Buttons:GetChildren()) do
-        if button:IsA("TextButton") then
-            button.BackgroundColor3 = (button == activeButton) and ACTIVE_BUTTON_COLOR or DEFAULT_BUTTON_COLOR
-        end
-    end
+	for _, btn in ipairs(self.Buttons:GetChildren()) do
+		if btn:IsA("TextButton") then
+			btn.BackgroundColor3 = (btn == activeButton) and ACTIVE_BUTTON_COLOR or DEFAULT_BUTTON_COLOR
+		end
+	end
 end
 
 function UIManager:ShowFrame(frameToShow)
-    for _, frame in ipairs(Frames:GetChildren()) do
-        if frame:IsA("Frame") then
-            frame.Visible = (frame == frameToShow)
-        end
-    end
+	for _, frame in ipairs(self.Frames:GetChildren()) do
+		if frame:IsA("Frame") then
+			frame.Visible = (frame == frameToShow)
+		end
+	end
 end
 
 function UIManager:SetupButtonConnections()
-    local buttonHandlers = {
-        [Buttons:FindFirstChild("TURFS")] = function()
-            UIManager:ShowFrame(Frames:FindFirstChild("TURFS"))
-            UIManager:SetButtonColors(Buttons.TURFS)
-        end,
-        [Buttons:FindFirstChild("CREATE")] = function()
-            UIManager:ShowFrame(Frames:FindFirstChild("CREATE"))
-            UIManager:SetButtonColors(Buttons.CREATE)
-            UIManager:DebugPrint("UI switched to CREATE frame")
-        end,
-        [Buttons:FindFirstChild("MENU")] = function()
-            UIManager:ShowFrame(Frames:FindFirstChild("JOIN"))
-            UIManager:SetButtonColors(Buttons.MENU)
-        end
-    }
+	self:DebugPrint("Setting up buttons...")
 
-    for button, handler in pairs(buttonHandlers) do
-        if button then
-            button.MouseButton1Click:Connect(handler)
-        else
-            warn("[UIManager] Button missing in Buttons folder")
-        end
-    end
-end
+	local turfsBtn = self.Buttons:FindFirstChild("TURFS")
+	local createBtn = self.Buttons:FindFirstChild("CREATE")
+	local menuBtn = self.Buttons:FindFirstChild("MENU")
 
-function UIManager:GetButtons()
-    return Buttons
-end
+	if turfsBtn then
+		turfsBtn.MouseButton1Click:Connect(function()
+			self:DebugPrint("TURFS clicked")
+			self:ShowFrame(self.Frames:FindFirstChild("TURFS"))
+			self:SetButtonColors(turfsBtn)
+		end)
+	end
 
-function UIManager:GetFrames()
-    return Frames
+	if createBtn then
+		createBtn.MouseButton1Click:Connect(function()
+			self:DebugPrint("CREATE clicked")
+			self:ShowFrame(self.Frames:FindFirstChild("CREATE"))
+			self:SetButtonColors(createBtn)
+		end)
+	end
+
+	if menuBtn then
+		menuBtn.MouseButton1Click:Connect(function()
+			self:DebugPrint("MENU clicked")
+			self:ShowFrame(self.Frames:FindFirstChild("JOIN"))
+			self:SetButtonColors(menuBtn)
+		end)
+	end
 end
 
 return UIManager
