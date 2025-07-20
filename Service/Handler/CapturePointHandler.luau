@@ -1,18 +1,147 @@
+
+local CapturePointHandler = {}
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Wallet = require(ReplicatedStorage:WaitForChild("Classes"):WaitForChild("Wallet"))
+
+local CapturePointEvent = ReplicatedStorage:FindFirstChild("CapturePointEvent")
+if not CapturePointEvent then
+    CapturePointEvent = Instance.new("RemoteEvent")
+    CapturePointEvent.Name = "CapturePointEvent"
+    CapturePointEvent.Parent = ReplicatedStorage
+end
+
+-- Settings
+local MONEY_PER_SECOND = 10 -- Change as needed
+local CAPTURE_RADIUS = 10 -- studs
+
+-- Internal state for money generation
+local activeCaptureLoops = {}
+
+-- Utility: Find players on a capture point
+local function getPlayersOnPoint(location)
+    local playersOnPoint = {}
+    for _, player in ipairs(Players:GetPlayers()) do
+        local character = player.Character
+        if character and character:FindFirstChild("HumanoidRootPart") then
+            local dist = (character.HumanoidRootPart.Position - location).Magnitude
+            if dist <= CAPTURE_RADIUS then
+                table.insert(playersOnPoint, player)
+            end
+        end
+    end
+    return playersOnPoint
+end
+
+-- Start money generation for a capture point
+local function startMoneyLoop(capturePoint)
+    if activeCaptureLoops[capturePoint] then return end
+    activeCaptureLoops[capturePoint] = true
+    coroutine.wrap(function()
+        while activeCaptureLoops[capturePoint] and capturePoint:IsOccupied() do
+            local team = capturePoint.OccupyingTeam
+            if team then
+                -- Distribute money to all players on the team
+                for _, player in ipairs(Players:GetPlayers()) do
+                    if player.Team == team then
+                        Wallet:AddMoney(player, MONEY_PER_SECOND)
+                    end
+                end
+                -- Fire UI update
+                CapturePointEvent:FireAllClients("UpdateCapturePointUI", {
+                    Name = capturePoint.Name,
+                    Owner = team.Name,
+                    MoneyPerSecond = MONEY_PER_SECOND
+                })
+            end
+            wait(1)
+        end
+    end)()
+end
+
+-- Stop money generation for a capture point
+local function stopMoneyLoop(capturePoint)
+    activeCaptureLoops[capturePoint] = nil
+end
+
+
+-- Public: Call this to monitor a capture point part
+-- 15s capture logic: player must stay on part for 15s to capture
+function CapturePointHandler:MonitorCapturePointPart(part, capturePoint)
+    local capturingPlayers = {}
+
+    local function isPlayerOnPart(player)
+        local character = player.Character
+        if character and character:FindFirstChild("HumanoidRootPart") then
+            local root = character.HumanoidRootPart
+            local partPos = part.Position
+            local dist = (root.Position - partPos).Magnitude
+            -- Use a more generous buffer for easier testing
+            return dist <= (math.max(part.Size.X, part.Size.Z)/2 + 5)
+        end
+        return false
+    end
+
+    part.Touched:Connect(function(hit)
+        local character = hit.Parent
+        local player = Players:GetPlayerFromCharacter(character)
+        if player and player.Team and not capturingPlayers[player] then
+            if not capturePoint:IsOccupied() or capturePoint.OccupyingTeam ~= player.Team then
+                capturingPlayers[player] = true
+                print("[CapturePoint] " .. player.Name .. " is capturing point '" .. capturePoint.Name .. "' for team '" .. player.Team.Name .. "' (color: " .. tostring(player.Team.TeamColor) .. ")")
+                -- Start 15s timer
+                coroutine.wrap(function()
+                    local elapsed = 0
+                    print("[CapturePoint] Timer started for " .. player.Name)
+                    while elapsed < 15 do
+                        if not isPlayerOnPart(player) then
+                            print("[CapturePoint] " .. player.Name .. " left the point early at " .. elapsed .. "s")
+                            capturingPlayers[player] = nil
+                            return -- Player left, cancel capture
+                        end
+                        print("[CapturePoint] " .. player.Name .. " still on point at " .. elapsed .. "s")
+                        wait(1)
+                        elapsed = elapsed + 1
+                    end
+                    -- After 15s, if still on part, capture
+                    if isPlayerOnPart(player) and (not capturePoint:IsOccupied() or capturePoint.OccupyingTeam ~= player.Team) then
+                        capturePoint:SetOccupied(player.Team)
+                        -- Set the part color to the team color
+                        if part:IsA("BasePart") then
+                            part.BrickColor = player.Team.TeamColor
+                        end
+                        print("[CapturePoint] Point '" .. capturePoint.Name .. "' captured by group/team '" .. player.Team.Name .. "' (color: " .. tostring(player.Team.TeamColor) .. ")")
+                        startMoneyLoop(capturePoint)
+                    end
+                    capturingPlayers[player] = nil
+                end)()
+            end
+        end
+    end)
+end
+
+-- Call this to release a capture point (e.g., when no players are present)
+function CapturePointHandler:ReleaseCapturePointAndStop(capturePoint)
+    stopMoneyLoop(capturePoint)
+    capturePoint:Release()
+    CapturePointEvent:FireAllClients("UpdateCapturePointUI", {
+        Name = capturePoint.Name,
+        Owner = "None",
+        MoneyPerSecond = 0
+    })
+end
+
 local Teams = game:GetService("Teams")
-
 local CapturePoint = require(ReplicatedStorage:WaitForChild("Classes"):WaitForChild("CapturePoint"))
-
 local capturePointFolder = ReplicatedStorage:FindFirstChild("CapturePointObjects")
 if not capturePointFolder then
     capturePointFolder = Instance.new("Folder")
     capturePointFolder.Name = "CapturePointObjects"
     capturePointFolder.Parent = ReplicatedStorage
 end
-
-
 local allCapturePoints = {} -- hashmap: name -> capturePoint
-local CapturePointHandler = {}
 
 
 
