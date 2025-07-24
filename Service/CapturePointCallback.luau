@@ -11,7 +11,12 @@ for _, part in ipairs(capturePointsFolder:GetChildren()) do
 	if part:IsA("BasePart") then
 		print("[DEBUG] Setting up capture logic for part:", part.Name)
 		-- Create a CapturePoint object for this part
-		local cp = CapturePointHandler:CreateCapturePoint(part.Name, part.Position)
+		local moneyValue = 100 -- default
+		local intVal = part:FindFirstChild("MoneyPerMinute")
+		if intVal and intVal:IsA("IntValue") then
+			moneyValue = intVal.Value
+		end
+		local cp = CapturePointHandler:CreateCapturePoint(part.Name, part.Position, moneyValue)
 		-- Start monitoring (original logic)
 		CapturePointHandler:MonitorCapturePointPart(part, cp)
 	else

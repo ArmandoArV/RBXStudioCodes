@@ -4,7 +4,7 @@ local Players = game:GetService("Players")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
-local GangMenu = playerGui:WaitForChild("GangMenu")
+local GangMenu = playerGui:WaitForChild("Buttons")
 
 local GangRemoteEvent = ReplicatedStorage:WaitForChild("GangRemoteEvent")
 
@@ -25,7 +25,7 @@ local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
-local GangMenu = playerGui:WaitForChild("GangMenu")
+local GangMenu = playerGui:WaitForChild("Buttons")
 local Modules = GangMenu:WaitForChild("Modules")
 local UIManager = require(Modules:WaitForChild("UIManager"))
 
@@ -43,8 +43,8 @@ uiManager:ShowFrame(uiManager.Frames:FindFirstChild("JOIN"))
 local gangCreation = GangCreation.new(uiManager.Frames, GangRemoteEvent, debugPrint)
 local gangJoining = GangJoining.new(uiManager.Frames, GangRemoteEvent, debugPrint)
 local turfsUI = TurfsUI.new(uiManager.Frames, debugPrint)
-
 gangCreation:Setup()
+gangJoining:Setup()
 uiManager:SetupButtonConnections()
 
 -- Override ShowFrame to populate TURFS
@@ -59,20 +59,34 @@ end
 -- Handle remote events
 GangRemoteEvent.OnClientEvent:Connect(function(eventType, data)
 	debugPrint("Server event:", eventType, data)
-
+	
 	if eventType == "GangCreated" or eventType == "GangJoined" then
 		debugPrint("Success:", eventType)
-		GangMenu.Visible = false
-		player:LoadCharacter()
+		local joinFrame = uiManager.Frames:FindFirstChild("JOIN")
+		local createFrame = uiManager.Frames:FindFirstChild("CREATE")
+		if joinFrame and joinFrame:FindFirstChild("Status") then
+			joinFrame.Status.Text = "¡Haz ingresado a la Gang!"
+			joinFrame.Join.Toggle.Visible = true
+			joinFrame.Join.Label.Text = "Ingresar"
+			joinFrame.Join.Label.Shadow.Text = "Ingresar"
+		end
+		if createFrame and createFrame:FindFirstChild("Create").Label then
+			createFrame.Create.Label.Text = "¡Gang creada exitosamente!"
+		end
+		uiManager:ShowFrame(uiManager.Frames:FindFirstChild("GANG"))
+		--GangMenu.Visible = false
+		--player:LoadCharacter()
 	elseif eventType:find("Failed") then
 		debugPrint("Failed:", data)
 		local joinFrame = uiManager.Frames:FindFirstChild("JOIN")
 		if joinFrame and joinFrame:FindFirstChild("Status") then
 			joinFrame.Status.Text = data or "Unknown error"
+			joinFrame.Join.Toggle.Visible = true
+			joinFrame.Join.Label.Text = "Ingresar"
+			joinFrame.Join.Label.Shadow.Text = "Ingresar"
 		end
 	elseif eventType == "RefreshGangList" then
 		debugPrint("Refreshing gang list")
 	end
 end)
-
 debugPrint("Gang system client initialized")
