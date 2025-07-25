@@ -92,7 +92,7 @@ function TurfsUI:PopulateTurfsUI()
 			warn("[TurfsUI] PayTitle TextBox missing in row", row.Name)
 		end
 
-		rowCount += 1
+		rowCount = rowCount + 1
 	end
 
 	if BackgroundFrame:IsA("ScrollingFrame") and layout then
