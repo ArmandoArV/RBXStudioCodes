@@ -20,6 +20,7 @@ function TurfsUI.new(frames, debugPrint)
 	local self = setmetatable({}, TurfsUI)
 	self.Frames = frames
 	self.DebugPrint = debugPrint or defaultDebugPrint
+	self.Connections = {} -- Store connections for cleanup
 	return self
 end
 
@@ -81,18 +82,24 @@ function TurfsUI:PopulateTurfsUI()
 		local payTitleBox = row:FindFirstChild("Pay")
 
 		if ownedBox and ownedBox:IsA("TextLabel") then
-			ownedBox.Text = (team ~= "None") and team or "Unoccupied"
+			if team ~= "None" and occupied then
+				ownedBox.Text = team
+				ownedBox.TextColor3 = Color3.fromRGB(85, 255, 127) -- Green for occupied
+			else
+				ownedBox.Text = "Disponible"
+				ownedBox.TextColor3 = Color3.fromRGB(255, 85, 85) -- Red for unoccupied
+			end
 		else
 			warn("[TurfsUI] Owned TextBox missing in row", row.Name)
 		end
 
 		if payTitleBox and payTitleBox:IsA("TextLabel") then
-			payTitleBox.Text = "Location: " .. location .. " | Occupied: " .. tostring(occupied)
+			local status = occupied and "Ocupado" or "Libre"
+			payTitleBox.Text = "Ubicación: " .. location .. " | Estado: " .. status .. " | $100/min"
 		else
 			warn("[TurfsUI] PayTitle TextBox missing in row", row.Name)
 		end
 
---		rowCount += 1
 		rowCount = rowCount + 1
 
 	end
@@ -102,6 +109,69 @@ function TurfsUI:PopulateTurfsUI()
 	end
 
 	self.DebugPrint("Total rows created:", rowCount)
+end
+
+-- Setup automatic updates when capture points change
+function TurfsUI:SetupAutoUpdate()
+	local folder = ReplicatedStorage:WaitForChild("CapturePoints")
+	
+	-- Listen for changes to the capture points folder
+	local function onCapturePointChange()
+		self.DebugPrint("Capture points changed, refreshing UI...")
+		-- Use pcall to handle potential errors during UI update
+		local success, err = pcall(function()
+			self:PopulateTurfsUI()
+		end)
+		if not success then
+			warn("[TurfsUI] Error updating UI:", err)
+		end
+	end
+	
+	-- Connect to folder changes
+	table.insert(self.Connections, folder.ChildAdded:Connect(onCapturePointChange))
+	table.insert(self.Connections, folder.ChildRemoved:Connect(onCapturePointChange))
+	
+	-- Listen for changes to individual capture point properties
+	local function setupCapturePointListeners(cpFolder)
+		if cpFolder:IsA("Folder") then
+			local teamValue = cpFolder:FindFirstChild("Team")
+			local occupiedValue = cpFolder:FindFirstChild("Occupied")
+			
+			if teamValue then
+				table.insert(self.Connections, teamValue.Changed:Connect(onCapturePointChange))
+			end
+			
+			if occupiedValue then
+				table.insert(self.Connections, occupiedValue.Changed:Connect(onCapturePointChange))
+			end
+		end
+	end
+	
+	-- Setup listeners for existing capture points
+	for _, cpFolder in ipairs(folder:GetChildren()) do
+		setupCapturePointListeners(cpFolder)
+	end
+	
+	-- Listen for new capture points being added
+	table.insert(self.Connections, folder.ChildAdded:Connect(function(child)
+		-- Wait for child properties to be set
+		task.wait(0.1)
+		setupCapturePointListeners(child)
+		onCapturePointChange()
+	end))
+	
+	self.DebugPrint("Auto-update system initialized")
+end
+
+-- Cleanup connections
+function TurfsUI:Cleanup()
+	for _, connection in ipairs(self.Connections) do
+		if connection then
+			connection:Disconnect()
+		end
+	end
+	self.Connections = {}
+	self.DebugPrint("Cleanup completed")
 end
 
 return TurfsUI

@@ -46,6 +46,7 @@ print("Gangs", GangMenu:FindFirstChild("GUIs") and GangMenu.GUIs:FindFirstChild(
 
 gangCreation:Setup()
 gangJoining:Setup()
+turfsUI:SetupAutoUpdate() -- Setup automatic UI updates
 
 -- Enhanced gang detection with wait for replication
 local function isPlayerInGang()

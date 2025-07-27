@@ -13,6 +13,14 @@ if not CapturePointEvent then
 	CapturePointEvent.Parent = ReplicatedStorage
 end
 
+-- Create SendNotification RemoteEvent if it doesn't exist
+local SendNotification = ReplicatedStorage:FindFirstChild("SendNotification")
+if not SendNotification then
+	SendNotification = Instance.new("RemoteEvent")
+	SendNotification.Name = "SendNotification"
+	SendNotification.Parent = ReplicatedStorage
+end
+
 -- Settings
 local MONEY_PER_SECOND = 10 -- Change as needed
 local CAPTURE_RADIUS = 10 -- studs
@@ -46,7 +54,15 @@ local function startMoneyLoop(capturePoint)
 				wait(60)
 				for _, player in ipairs(Players:GetPlayers()) do
 					if player.Team == team then
-						WalletHandler:AddFunds(player, capturePoint.MoneyPerMinute or 100)
+						local amount = capturePoint.MoneyPerMinute or 100
+						WalletHandler:AddFunds(player, amount)
+						-- Send notification to player about money earned
+						SendNotification:FireClient(player, {
+							Title = "TERRITORIO",
+							Text = "Ganaste $" .. amount .. " del territorio " .. capturePoint.Name,
+							Icon = "rbxassetid://6022668892",
+							Duration = 4
+						})
 					end
 				end
 				CapturePointEvent:FireAllClients("UpdateCapturePointUI", {
@@ -107,13 +123,13 @@ function CapturePointHandler:MonitorCapturePointPart(part, capturePoint)
 					end
 					-- After 15s, if still on part, capture
 					if isPlayerOnPart(player) and (not capturePoint:IsOccupied() or capturePoint.OccupyingTeam ~= player.Team) then
-						capturePoint:SetOccupied(player.Team)
+						-- Use the proper OccupyCapturePoint method to trigger notifications and replication
+						CapturePointHandler:OccupyCapturePoint(capturePoint, player.Team)
 						-- Set the part color to the team color
 						if part:IsA("BasePart") then
 							part.BrickColor = player.Team.TeamColor
 						end
 						print("[CapturePoint] Point '" .. capturePoint.Name .. "' captured by group/team '" .. player.Team.Name .. "' (color: " .. tostring(player.Team.TeamColor) .. ")")
-						startMoneyLoop(capturePoint)
 					end
 					capturingPlayers[player] = nil
 				end)()
@@ -157,6 +173,22 @@ function CapturePointHandler:OccupyCapturePoint(capturePoint, team)
 	if not capturePoint:IsOccupied() then
 		capturePoint:SetOccupied(team)
 		print("Capture Point " .. capturePoint:GetName() .. " occupied by team: " .. team.Name)
+		
+		-- Send notification to all players about the capture
+		for _, player in ipairs(Players:GetPlayers()) do
+			SendNotification:FireClient(player, {
+				Title = "TERRITORIO CAPTURADO",
+				Text = "La gang " .. team.Name .. " ha capturado " .. capturePoint:GetName(),
+				Icon = "rbxassetid://6022668892",
+				Duration = 5
+			})
+		end
+		
+		-- Start money generation for this capture point
+		startMoneyLoop(capturePoint)
+		
+		-- Update replication
+		self:ReplicateCapturePoints()
 	else
 		print("Capture Point " .. capturePoint:GetName() .. " is already occupied by team: " .. capturePoint.OccupyingTeam.Name)
 	end
@@ -164,7 +196,27 @@ end
 
 function CapturePointHandler:ReleaseCapturePoint(capturePoint)
 	if capturePoint:IsOccupied() then
+		local previousTeam = capturePoint.OccupyingTeam
 		capturePoint:Release()
+		
+		-- Stop money generation
+		activeCaptureLoops[capturePoint] = nil
+		
+		-- Send notification about territory being lost
+		if previousTeam then
+			for _, player in ipairs(Players:GetPlayers()) do
+				SendNotification:FireClient(player, {
+					Title = "TERRITORIO PERDIDO",
+					Text = "La gang " .. previousTeam.Name .. " ha perdido " .. capturePoint:GetName(),
+					Icon = "rbxassetid://6022668892",
+					Duration = 5
+				})
+			end
+		end
+		
+		-- Update replication
+		self:ReplicateCapturePoints()
+		
 		print("Capture Point " .. capturePoint:GetName() .. " has been released")
 	else
 		print("Capture Point " .. capturePoint:GetName() .. " is not occupied")
@@ -341,6 +393,44 @@ function CapturePointHandler:CapturePointDestroy(capturePoint)
 		print("Capture Point " .. capturePoint:GetName() .. " has been destroyed")
 	else
 		print("No capture point provided to destroy")
+	end
+end
+
+-- Function to replicate capture points to ReplicatedStorage for client UI
+function CapturePointHandler:ReplicateCapturePoints()
+	local folder = ReplicatedStorage:FindFirstChild("CapturePoints")
+	if not folder then
+		folder = Instance.new("Folder")
+		folder.Name = "CapturePoints"
+		folder.Parent = ReplicatedStorage
+	end
+	
+	-- Clear old data
+	for _, v in ipairs(folder:GetChildren()) do 
+		v:Destroy() 
+	end
+
+	local capturePoints = self:GetAllCapturePoints()
+	for _, cp in ipairs(capturePoints) do
+		local info = cp:GetInfo()
+		local cpValue = Instance.new("Folder")
+		cpValue.Name = info.Name
+		cpValue.Parent = folder
+		
+		local loc = Instance.new("StringValue")
+		loc.Name = "Location"
+		loc.Value = tostring(info.Location)
+		loc.Parent = cpValue
+		
+		local occupied = Instance.new("BoolValue")
+		occupied.Name = "Occupied"
+		occupied.Value = info.Occupied
+		occupied.Parent = cpValue
+		
+		local team = Instance.new("StringValue")
+		team.Name = "Team"
+		team.Value = info.OccupyingTeam or "None"
+		team.Parent = cpValue
 	end
 end
 

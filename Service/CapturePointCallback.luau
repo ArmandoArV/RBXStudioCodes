@@ -23,3 +23,7 @@ for _, part in ipairs(capturePointsFolder:GetChildren()) do
 		print("[DEBUG] Skipping non-BasePart:", part.Name, part.ClassName)
 	end
 end
+
+-- Initial replication after all capture points are created
+CapturePointHandler:ReplicateCapturePoints()
+print("[DEBUG] Initial capture points replication completed")
