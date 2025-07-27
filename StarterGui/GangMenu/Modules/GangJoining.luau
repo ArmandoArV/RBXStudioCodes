@@ -27,7 +27,7 @@ end
 
 function GangJoining:Setup()
 	debugPrint("hi")
-	local JOINFrame = Frames:WaitForChild("JOIN")
+	local JOINFrame = Frames:WaitForChild("MENU").JOIN
 	local groupIdInput = JOINFrame:WaitForChild("GroupID")
 	local joinButton = JOINFrame:WaitForChild("Join")
 

@@ -175,6 +175,7 @@ function GangHandler:HandleCreateGang(player, data)
 	local newTeam = Instance.new("Team")
 	newTeam.Name = name
 	newTeam.TeamColor = BrickColor.new(colorOrError)
+	newTeam:SetAttribute("GroupId", groupId) -- Set GroupId attribute for the team
 	newTeam.Parent = Teams
 	player.Team = newTeam
 
@@ -268,6 +269,70 @@ function GangHandler:HandleJoinGang(player, data)
 		}
 	})
 	debugLog(player.Name, "joined gang", targetTeam.Name)
+end
+
+function GangHandler:HandleLeaveGang(player, data)
+	debugLog("[LeaveGang] Request from", player.Name)
+
+	-- Check if player is currently in a team
+	if not player.Team then
+		debugLog("[LeaveGang] Player not in any gang")
+		return self._remoteEvent:FireClient(player, "GangLeaveFailed", "You are not in any gang")
+	end
+
+	local currentTeam = player.Team
+	local teamName = currentTeam.Name
+
+	-- Remove player from team (sets to nil/neutral)
+	player.Team = nil
+
+	-- Update gang storage if this was a custom gang
+	if self._gangs[teamName] then
+		local gang = self._gangs[teamName]
+		local gangInfo = gang:GetInfo()
+
+		-- Remove from members list
+		for i, member in ipairs(gangInfo.Members) do
+			if member == player then
+				table.remove(gangInfo.Members, i)
+				break
+			end
+		end
+
+		-- If this was the leader and there are other members, transfer leadership
+		if gangInfo.Leader == player and #gangInfo.Members > 0 then
+			gang.Leader = gangInfo.Members[1]
+			debugLog("[LeaveGang] Leadership transferred to", gang.Leader.Name)
+		elseif gangInfo.Leader == player and #gangInfo.Members == 0 then
+			-- If no members left, remove the gang entirely
+			currentTeam:Destroy()
+			self._gangs[teamName] = nil
+
+			-- Remove from ReplicatedStorage
+			local gangFolder = ReplicatedStorage:FindFirstChild("Gangs")
+			if gangFolder then
+				local gangInstance = gangFolder:FindFirstChild(teamName)
+				if gangInstance then
+					gangInstance:Destroy()
+				end
+			end
+
+			debugLog("[LeaveGang] Gang", teamName, "disbanded - no members left")
+			self._remoteEvent:FireAllClients("RefreshGangList")
+		end
+
+		-- Update storage if gang still exists
+		if self._gangs[teamName] then
+			updateGangInfoInStorage(gang)
+		end
+	end
+
+	-- Notify client of successful leave
+	self._remoteEvent:FireClient(player, "GangLeft", {
+		previousGang = teamName
+	})
+
+	debugLog(player.Name, "left gang", teamName)
 end
 
 function GangHandler:AddMember(player, member)

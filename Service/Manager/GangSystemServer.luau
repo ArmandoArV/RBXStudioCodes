@@ -1,4 +1,5 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local SSS = game:GetService("ServerScriptService")
 local Players = game:GetService("Players")
 local Teams = game:GetService("Teams")
 local GroupService = game:GetService("GroupService")
@@ -24,6 +25,67 @@ local gangData = {
 	teamCreationTimes = {},
 	reservedColors = {}
 }
+
+-- Function to set GroupId attributes for existing teams that might not have them
+local function initializeExistingTeamGroupIds()
+	debugLog("Initializing GroupId attributes for existing teams...")
+
+	-- Import GroupIds module to check for registered groups
+	local success, GroupIds = pcall(function()
+		return require(SSS:WaitForChild("GroupIds"))
+	end)
+
+	if not success then
+		debugLog("Could not load GroupIds module")
+		return
+	end
+
+	-- Check all existing teams
+	for _, team in ipairs(Teams:GetTeams()) do
+		-- Skip if team already has GroupId attribute
+		if team:GetAttribute("GroupId") then
+			debugLog("Team " .. team.Name .. " already has GroupId: " .. tostring(team:GetAttribute("GroupId")))
+		else
+			-- Try to find matching group ID from GroupIds module based on team color
+			local teamColorName = team.TeamColor.Name
+			debugLog("Checking team: " .. team.Name .. " with color: " .. teamColorName)
+
+			for groupName, groupData in pairs(GroupIds) do
+				for subGroupName, subGroupData in pairs(groupData) do
+					if subGroupData.TEAM == teamColorName and subGroupData.ID then
+						team:SetAttribute("GroupId", subGroupData.ID)
+						debugLog("Set GroupId " .. subGroupData.ID .. " for team " .. team.Name)
+						-- Store in mapping for consistency
+						gangData.groupTeamMappings[subGroupData.ID] = team
+						break
+					end
+				end
+			end
+
+			-- If no GroupId found, warn about it
+			if not team:GetAttribute("GroupId") then
+				debugLog("Warning: Could not find GroupId for team " .. team.Name .. " with color " .. teamColorName)
+			end
+		end
+	end
+end
+
+-- Utility function to manually set GroupId for a team (useful for debugging/manual setup)
+local function setTeamGroupId(teamName, groupId)
+	local team = Teams:FindFirstChild(teamName)
+	if team then
+		team:SetAttribute("GroupId", groupId)
+		gangData.groupTeamMappings[groupId] = team
+		debugLog("Manually set GroupId " .. groupId .. " for team " .. teamName)
+		return true
+	else
+		debugLog("Team not found: " .. teamName)
+		return false
+	end
+end
+
+-- Expose utility function globally for server console use
+_G.setTeamGroupId = setTeamGroupId
 
 -- Get group info from Roblox
 GetGroupName.OnServerInvoke = function(player, groupId)
@@ -76,11 +138,13 @@ local function handleCreateGang(player, data)
 	local newTeam = Instance.new("Team")
 	newTeam.Name = data.name
 	newTeam.TeamColor = BrickColor.new(color)
+	newTeam:SetAttribute("GroupId", data.groupId) -- Set GroupId attribute for the team
+	newTeam:SetAttribute("IsGang", "yes")
 	newTeam.Parent = Teams
-
 	-- Update player team
 	player.Team = newTeam
-
+	player:LoadCharacter()
+	
 	-- Store mapping
 	gangData.groupTeamMappings[data.groupId] = newTeam
 	gangData.teamCreationTimes[newTeam] = os.time()
@@ -157,6 +221,7 @@ local function initializeReservedColors()
 end
 
 initializeReservedColors()
+initializeExistingTeamGroupIds()
 debugLog("System initialized")
 
 -- Full GetAvailableGangColors with debug logging

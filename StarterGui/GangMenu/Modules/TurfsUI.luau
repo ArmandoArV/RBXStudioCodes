@@ -76,7 +76,7 @@ function TurfsUI:PopulateTurfsUI()
 		row.Name = name .. "Row"
 		row.Visible = true
 		row.Parent = BackgroundFrame
-
+		row.Title.Text = name
 		local ownedBox = row:FindFirstChild("Owned")
 		local payTitleBox = row:FindFirstChild("Pay")
 
@@ -92,7 +92,9 @@ function TurfsUI:PopulateTurfsUI()
 			warn("[TurfsUI] PayTitle TextBox missing in row", row.Name)
 		end
 
+--		rowCount += 1
 		rowCount = rowCount + 1
+
 	end
 
 	if BackgroundFrame:IsA("ScrollingFrame") and layout then
