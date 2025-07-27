@@ -23,7 +23,7 @@ remoteEvent.OnServerEvent:Connect(function(player, action, capturePointName, tea
 	end
 
 	if action == "Occupy" then
-		CapturePointHandler:OccupyCapturePoint(capturePoint, team)
+		CapturePointHandler:OccupyCapturePoint(capturePoint, team, nil)
 	elseif action == "Release" then
 		CapturePointHandler:ReleaseCapturePoint(capturePoint)
 	else
