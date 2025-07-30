@@ -93,14 +93,14 @@ local function createCapturePointUI(part, capturePoint)
 	if existingUI then
 		existingUI:Destroy()
 	end
-	
+
 	-- Create BillboardGui
 	local billboardGui = Instance.new("BillboardGui")
 	billboardGui.Name = "CapturePointUI"
-	billboardGui.Size = UDim2.new(0, 200, 0, 100)
-	billboardGui.StudsOffset = Vector3.new(0, part.Size.Y/2 + 3, 0)
+	billboardGui.Size = UDim2.new(10, 0,5.5, 0)
+	billboardGui.StudsOffset = Vector3.new(0, part.Size.Y/2 + 6, 0)
 	billboardGui.Parent = part
-	billboardGui.MaxDistance = 50
+	billboardGui.MaxDistance = 150
 	-- Create main frame
 	local frame = Instance.new("Frame")
 	frame.Size = UDim2.new(1, 0, 1, 0)
@@ -108,18 +108,18 @@ local function createCapturePointUI(part, capturePoint)
 	frame.BackgroundTransparency = 0.3
 	frame.BorderSizePixel = 0
 	frame.Parent = billboardGui
-	
+
 	-- Add corner radius
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, 8)
 	corner.Parent = frame
-	
+
 	-- Create stroke
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = Color3.fromRGB(255, 255, 255)
 	stroke.Thickness = 2
 	stroke.Parent = frame
-	
+
 	-- Create title label (capture point name)
 	local titleLabel = Instance.new("TextLabel")
 	titleLabel.Name = "TitleLabel"
@@ -131,7 +131,7 @@ local function createCapturePointUI(part, capturePoint)
 	titleLabel.TextScaled = true
 	titleLabel.Font = Enum.Font.GothamBold
 	titleLabel.Parent = frame
-	
+
 	-- Create owner label
 	local ownerLabel = Instance.new("TextLabel")
 	ownerLabel.Name = "OwnerLabel"
@@ -139,11 +139,11 @@ local function createCapturePointUI(part, capturePoint)
 	ownerLabel.Position = UDim2.new(0, 0, 0.5, 0)
 	ownerLabel.BackgroundTransparency = 1
 	ownerLabel.Text = capturePoint:IsOccupied() and capturePoint.OccupyingTeam.Name or "Disponible"
-	ownerLabel.TextColor3 = capturePoint:IsOccupied() and Color3.fromRGB(85, 255, 127) or Color3.fromRGB(255, 85, 85)
+	ownerLabel.TextColor3 = capturePoint:IsOccupied() and Color3.fromRGB(85, 255, 127) or Color3.fromRGB(255, 255, 255) --Color3.fromRGB(255, 85, 85) previous red
 	ownerLabel.TextScaled = true
 	ownerLabel.Font = Enum.Font.Gotham
 	ownerLabel.Parent = frame
-	
+
 	print("[CapturePointHandler] Created UI for capture point: " .. capturePoint:GetName())
 	return billboardGui
 end
@@ -157,7 +157,7 @@ local function updateCapturePointUI(part, capturePoint)
 			local ownerLabel = frame:FindFirstChild("OwnerLabel")
 			if ownerLabel then
 				ownerLabel.Text = capturePoint:IsOccupied() and capturePoint.OccupyingTeam.Name or "Disponible"
-				ownerLabel.TextColor3 = capturePoint:IsOccupied() and Color3.fromRGB(85, 255, 127) or Color3.fromRGB(255, 85, 85)
+				ownerLabel.TextColor3 = capturePoint:IsOccupied() and Color3.fromRGB(85, 255, 127) or Color3.fromRGB(255, 255, 255) --Color3.fromRGB(255, 85, 85) previous red
 				print("[CapturePointHandler] Updated UI for capture point: " .. capturePoint:GetName())
 			end
 		end
@@ -172,10 +172,10 @@ end
 -- 15s capture logic: player must stay on part for 15s to capture
 function CapturePointHandler:MonitorCapturePointPart(part, capturePoint)
 	local capturingPlayers = {}
-	
+
 	-- Store part reference in capture point for UI updates
 	capturePoint.Part = part
-	
+
 	-- Create initial UI for this capture point
 	createCapturePointUI(part, capturePoint)
 
@@ -279,11 +279,11 @@ local function giveCaptureBonus(team, capturedPoints)
 		print("[CapturePointHandler] Error: Cannot give bonus for " .. capturedPoints .. " points")
 		return
 	end
-	
+
 	local totalBonus = BONUS_PER_CAPTURE_POINT * capturedPoints
-	
+
 	print("[CapturePointHandler] Giving capture bonus: $" .. totalBonus .. " to team " .. team.Name .. " for " .. capturedPoints .. " points")
-	
+
 	for _, player in ipairs(Players:GetPlayers()) do
 		if player.Team == team then
 			WalletHandler:AddFunds(player, totalBonus)
@@ -302,14 +302,14 @@ function CapturePointHandler:OccupyCapturePoint(capturePoint, team, part)
 	if not capturePoint:IsOccupied() then
 		capturePoint:SetOccupied(team)
 		print("Capture Point " .. capturePoint:GetName() .. " occupied by team: " .. team.Name)
-		
+
 		-- Update UI if part is provided, or use stored part reference
 		if part then
 			updateCapturePointUI(part, capturePoint)
 		elseif capturePoint.Part then
 			updateCapturePointUI(capturePoint.Part, capturePoint)
 		end
-		
+
 		-- Send notification to all players about the capture
 		for _, player in ipairs(Players:GetPlayers()) do
 			SendNotification:FireClient(player, {
@@ -319,10 +319,10 @@ function CapturePointHandler:OccupyCapturePoint(capturePoint, team, part)
 				Duration = 5
 			})
 		end
-		
+
 		-- Start money generation for this capture point (for ALL teams)
 		startMoneyLoop(capturePoint)
-		
+
 		-- Check if the capturing team belongs to target group and give ADDITIONAL bonus
 		local isTargetGroup = false
 		for _, player in ipairs(Players:GetPlayers()) do
@@ -338,13 +338,13 @@ function CapturePointHandler:OccupyCapturePoint(capturePoint, team, part)
 				end
 			end
 		end
-		
+
 		-- If team belongs to target group, give ADDITIONAL capture bonus
 		if isTargetGroup then
 			-- Count captured points AFTER this point has been marked as occupied
 			local capturedPoints = getTeamCapturedPointsCount(team)
 			print("[CapturePointHandler] Target group team captured point. Total controlled points: " .. capturedPoints)
-			
+
 			-- Only give bonus if there are actually captured points
 			if capturedPoints > 0 then
 				print("[CapturePointHandler] Giving ADDITIONAL bonus to group " .. TARGET_GROUP_ID)
@@ -355,7 +355,7 @@ function CapturePointHandler:OccupyCapturePoint(capturePoint, team, part)
 		else
 			print("[CapturePointHandler] Team " .. team.Name .. " gets regular money generation only (not in target group " .. TARGET_GROUP_ID .. ")")
 		end
-		
+
 		-- Update replication
 		self:ReplicateCapturePoints()
 	else
@@ -367,15 +367,15 @@ function CapturePointHandler:ReleaseCapturePoint(capturePoint)
 	if capturePoint:IsOccupied() then
 		local previousTeam = capturePoint.OccupyingTeam
 		capturePoint:Release()
-		
+
 		-- Update UI if part exists
 		if capturePoint.Part then
 			updateCapturePointUI(capturePoint.Part, capturePoint)
 		end
-		
+
 		-- Stop money generation
 		activeCaptureLoops[capturePoint] = nil
-		
+
 		-- Send notification about territory being lost
 		if previousTeam then
 			for _, player in ipairs(Players:GetPlayers()) do
@@ -387,10 +387,10 @@ function CapturePointHandler:ReleaseCapturePoint(capturePoint)
 				})
 			end
 		end
-		
+
 		-- Update replication
 		self:ReplicateCapturePoints()
-		
+
 		print("Capture Point " .. capturePoint:GetName() .. " has been released")
 	else
 		print("Capture Point " .. capturePoint:GetName() .. " is not occupied")
@@ -578,7 +578,7 @@ function CapturePointHandler:ReplicateCapturePoints()
 		folder.Name = "CapturePoints"
 		folder.Parent = ReplicatedStorage
 	end
-	
+
 	-- Clear old data
 	for _, v in ipairs(folder:GetChildren()) do 
 		v:Destroy() 
@@ -590,17 +590,17 @@ function CapturePointHandler:ReplicateCapturePoints()
 		local cpValue = Instance.new("Folder")
 		cpValue.Name = info.Name
 		cpValue.Parent = folder
-		
+
 		local loc = Instance.new("StringValue")
 		loc.Name = "Location"
 		loc.Value = tostring(info.Location)
 		loc.Parent = cpValue
-		
+
 		local occupied = Instance.new("BoolValue")
 		occupied.Name = "Occupied"
 		occupied.Value = info.Occupied
 		occupied.Parent = cpValue
-		
+
 		local team = Instance.new("StringValue")
 		team.Name = "Team"
 		team.Value = info.OccupyingTeam or "None"
