@@ -95,6 +95,20 @@ GetGroupName.OnServerInvoke = function(player, groupId)
 	return success and result or "Invalid Group ID"
 end
 
+-- Utility function to get or create CIUDADANO team
+local function getOrCreateCiudadanoTeam()
+	local ciudadanoTeam = Teams:FindFirstChild("CIUDADANO")
+	if not ciudadanoTeam then
+		ciudadanoTeam = Instance.new("Team")
+		ciudadanoTeam.Name = "CIUDADANO"
+		ciudadanoTeam.TeamColor = BrickColor.new("Gold") -- Brick gold color
+		ciudadanoTeam:SetAttribute("IsGang", false) -- Mark as not a gang
+		ciudadanoTeam.Parent = Teams
+		debugLog("Created CIUDADANO team")
+	end
+	return ciudadanoTeam
+end
+
 -- Validate color
 local function isColorReserved(color)
 	for _, reserved in pairs(gangData.reservedColors) do
@@ -191,6 +205,36 @@ local function handleJoinGang(player, data)
 	}
 end
 
+-- Handle gang leaving
+local function handleLeaveGang(player, data)
+	debugLog("HandleLeaveGang request from " .. player.Name)
+
+	-- Check if player is currently in a team
+	if not player.Team then
+		debugLog("Player not in any gang")
+		return false, "You are not in any gang"
+	end
+	
+	-- Check if the player is actually in a gang (not just CIUDADANO team)
+	if not (player.Team:GetAttribute("IsGang") == true or player.Team:GetAttribute("IsGang") == "yes") then
+		debugLog("Player is not in a gang")
+		return false, "You are not in a gang"
+	end
+
+	local currentTeam = player.Team
+	local teamName = currentTeam.Name
+
+	-- Find or create CIUDADANO team with gold color
+	local ciudadanoTeam = getOrCreateCiudadanoTeam()
+
+	-- Assign player to CIUDADANO team instead of nil
+	player.Team = ciudadanoTeam
+
+	return true, {
+		previousGang = teamName
+	}
+end
+
 -- Main event handler
 GangRemoteEvent.OnServerEvent:Connect(function(player, action, data)
 	local success, result
@@ -209,6 +253,13 @@ GangRemoteEvent.OnServerEvent:Connect(function(player, action, data)
 			GangRemoteEvent:FireClient(player, "GangJoined", result)
 		else
 			GangRemoteEvent:FireClient(player, "GangJoinFailed", result)
+		end
+	elseif action == "LeaveGang" then
+		success, result = handleLeaveGang(player, data)
+		if success then
+			GangRemoteEvent:FireClient(player, "GangLeft", result)
+		else
+			GangRemoteEvent:FireClient(player, "GangLeaveFailed", result)
 		end
 	end
 end)
@@ -263,3 +314,19 @@ GetAvailableGangColors.OnServerInvoke = function(player)
 
 	return available
 end
+
+-- Handle new players joining - assign them to CIUDADANO team
+Players.PlayerAdded:Connect(function(player)
+	-- Wait for player to load in
+	player.CharacterAdded:Connect(function()
+		-- Only assign to CIUDADANO if they're not already in a team
+		if not player.Team then
+			local ciudadanoTeam = getOrCreateCiudadanoTeam()
+			player.Team = ciudadanoTeam
+			debugLog("Assigned new player " .. player.Name .. " to CIUDADANO team")
+		end
+	end)
+end)
+
+-- Ensure CIUDADANO team exists on server start
+getOrCreateCiudadanoTeam()

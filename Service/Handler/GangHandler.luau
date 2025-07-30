@@ -113,10 +113,40 @@ function GangHandler.new()
 	return self
 end
 
+-- Utility function to get or create CIUDADANO team
+local function getOrCreateCiudadanoTeam()
+	local ciudadanoTeam = Teams:FindFirstChild("CIUDADANO")
+	if not ciudadanoTeam then
+		ciudadanoTeam = Instance.new("Team")
+		ciudadanoTeam.Name = "CIUDADANO"
+		ciudadanoTeam.TeamColor = BrickColor.new("Gold") -- Brick gold color
+		ciudadanoTeam:SetAttribute("IsGang", false) -- Mark as not a gang
+		ciudadanoTeam.Parent = Teams
+		debugLog("Created CIUDADANO team")
+	end
+	return ciudadanoTeam
+end
+
 function GangHandler:Init()
 	debugLog("Initializing RemoteEvent listener")
 	self._remoteEvent.OnServerEvent:Connect(function(player, action, data)
 		self:HandleRequest(player, action, data)
+	end)
+	
+	-- Ensure CIUDADANO team exists
+	getOrCreateCiudadanoTeam()
+	
+	-- Handle new players joining - assign them to CIUDADANO team
+	Players.PlayerAdded:Connect(function(player)
+		-- Wait for player to load in
+		player.CharacterAdded:Connect(function()
+			-- Only assign to CIUDADANO if they're not already in a team
+			if not player.Team then
+				local ciudadanoTeam = getOrCreateCiudadanoTeam()
+				player.Team = ciudadanoTeam
+				debugLog("Assigned new player", player.Name, "to CIUDADANO team")
+			end
+		end)
 	end)
 end
 
@@ -283,8 +313,11 @@ function GangHandler:HandleLeaveGang(player, data)
 	local currentTeam = player.Team
 	local teamName = currentTeam.Name
 
-	-- Remove player from team (sets to nil/neutral)
-	player.Team = nil
+	-- Find or create CIUDADANO team with brick gold color
+	local ciudadanoTeam = getOrCreateCiudadanoTeam()
+
+	-- Assign player to CIUDADANO team instead of nil
+	player.Team = ciudadanoTeam
 
 	-- Update gang storage if this was a custom gang
 	if self._gangs[teamName] then
