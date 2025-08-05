@@ -73,7 +73,7 @@ groupIDs.PM = {
 	MAIN = {
 		ID = 33481016,
 		TEAM = "Parsley green", -- 1 PM 2
-		SPAWN_LOCATION = "PM_MAIN"
+		SPAWN_LOCATION = "PM"
 	}
 }
 
@@ -85,16 +85,26 @@ groupIDs.HCM = {
 	}
 }
 
+
+groupIDs.FGR = {
+	MAIN = {
+		ID = 33481023,
+		TEAM = "Navy Blue", -- 1 PM 2
+		SPAWN_LOCATION = "FGR"
+	},
+}
+
+
 groupIDs.AIC = {
 	MAIN = {
-		ID = 32758507,
+		ID = 33481023,
 		TEAM = "Oyster", -- 1 AIC
-		SPAWN_LOCATION = "AIC"
+		SPAWN_LOCATION = "FGR"
 	},
 	GL = {
 		ID = 14337201,
 		TEAM = "Medium blue",
-		SPAWN_LOCATION = "AIC"
+		SPAWN_LOCATION = "FGR"
 	}
 }
 
