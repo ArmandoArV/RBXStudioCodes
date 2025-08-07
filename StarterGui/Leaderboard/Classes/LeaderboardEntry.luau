@@ -33,49 +33,109 @@ end
 
 function LeaderboardEntry:updatePing(ping, tweenService)
     self.ping = ping
-    if self.ui then
-        local targetui = self.ui
-        targetui.details.lists.ping.Label.Text = tostring(ping) .. "ms"
-        if ping <= 70 then
-            targetui.details.lists.ping.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-            targetui.details.lists.ping.Label.TextColor3 = Color3.fromRGB(67, 200, 98)
-            targetui.details.lists.ping.IconImage.Image = "rbxassetid://98966243978296"
+    if not self.ui then
+        warn("[LeaderboardEntry] updatePing: UI reference is nil")
+        return
+    end
+    
+    local targetui = self.ui
+    
+    -- Check if details structure exists
+    if not targetui:FindFirstChild("details") then
+        warn("[LeaderboardEntry] updatePing: details not found in UI")
+        return
+    end
+    
+    local details = targetui.details
+    if not details:FindFirstChild("lists") then
+        warn("[LeaderboardEntry] updatePing: lists not found in details")
+        return
+    end
+    
+    local lists = details.lists
+    if not lists:FindFirstChild("ping") then
+        warn("[LeaderboardEntry] updatePing: ping not found in lists")
+        return
+    end
+    
+    local pingElement = lists.ping
+    if not pingElement:FindFirstChild("Label") then
+        warn("[LeaderboardEntry] updatePing: Label not found in ping element")
+        return
+    end
+    
+    pingElement.Label.Text = tostring(ping) .. "ms"
+    
+    -- Apply styling based on ping value
+    if ping <= 70 then
+        pingElement.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+        pingElement.Label.TextColor3 = Color3.fromRGB(67, 200, 98)
+        if pingElement:FindFirstChild("IconImage") then
+            pingElement.IconImage.Image = "rbxassetid://98966243978296"
+        end
+        if targetui:FindFirstChild("basic") and targetui.basic:FindFirstChild("userdata") and targetui.basic.userdata:FindFirstChild("Ping") then
             targetui.basic.userdata.Ping.Image = "rbxassetid://98966243978296"
-            tweenService:Create(targetui.details.lists.ping.UIStroke,TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        end
+        if pingElement:FindFirstChild("UIStroke") and tweenService then
+            tweenService:Create(pingElement.UIStroke, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
                 Thickness = 0
-            }):Play();
-        elseif ping <= 100 then
-            targetui.details.lists.ping.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-            targetui.details.lists.ping.Label.TextColor3 = Color3.fromRGB(67, 200, 98)
-            targetui.details.lists.ping.IconImage.Image = "rbxassetid://80192110147601"
+            }):Play()
+        end
+    elseif ping <= 100 then
+        pingElement.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+        pingElement.Label.TextColor3 = Color3.fromRGB(67, 200, 98)
+        if pingElement:FindFirstChild("IconImage") then
+            pingElement.IconImage.Image = "rbxassetid://80192110147601"
+        end
+        if targetui:FindFirstChild("basic") and targetui.basic:FindFirstChild("userdata") and targetui.basic.userdata:FindFirstChild("Ping") then
             targetui.basic.userdata.Ping.Image = "rbxassetid://80192110147601"
-            tweenService:Create(targetui.details.lists.ping.UIStroke,TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        end
+        if pingElement:FindFirstChild("UIStroke") and tweenService then
+            tweenService:Create(pingElement.UIStroke, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
                 Thickness = 0
-            }):Play();
-        elseif ping <= 200 then
-            targetui.details.lists.ping.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-            targetui.details.lists.ping.Label.TextColor3 = Color3.fromRGB(221, 147, 0)
-            targetui.details.lists.ping.IconImage.Image = "rbxassetid://122030464744415"
+            }):Play()
+        end
+    elseif ping <= 200 then
+        pingElement.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+        pingElement.Label.TextColor3 = Color3.fromRGB(221, 147, 0)
+        if pingElement:FindFirstChild("IconImage") then
+            pingElement.IconImage.Image = "rbxassetid://122030464744415"
+        end
+        if targetui:FindFirstChild("basic") and targetui.basic:FindFirstChild("userdata") and targetui.basic.userdata:FindFirstChild("Ping") then
             targetui.basic.userdata.Ping.Image = "rbxassetid://122030464744415"
-            tweenService:Create(targetui.details.lists.ping.UIStroke,TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        end
+        if pingElement:FindFirstChild("UIStroke") and tweenService then
+            tweenService:Create(pingElement.UIStroke, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
                 Thickness = 0
-            }):Play();
-        elseif ping <= 350 then
-            targetui.details.lists.ping.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-            targetui.details.lists.ping.Label.TextColor3 = Color3.fromRGB(221, 147, 0)
-            targetui.details.lists.ping.IconImage.Image = "rbxassetid://82323767111213"
+            }):Play()
+        end
+    elseif ping <= 350 then
+        pingElement.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+        pingElement.Label.TextColor3 = Color3.fromRGB(221, 147, 0)
+        if pingElement:FindFirstChild("IconImage") then
+            pingElement.IconImage.Image = "rbxassetid://82323767111213"
+        end
+        if targetui:FindFirstChild("basic") and targetui.basic:FindFirstChild("userdata") and targetui.basic.userdata:FindFirstChild("Ping") then
             targetui.basic.userdata.Ping.Image = "rbxassetid://82323767111213"
-            tweenService:Create(targetui.details.lists.ping.UIStroke,TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        end
+        if pingElement:FindFirstChild("UIStroke") and tweenService then
+            tweenService:Create(pingElement.UIStroke, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
                 Thickness = 0
-            }):Play();
-        elseif ping > 500 then
-            targetui.details.lists.ping.BackgroundColor3 = Color3.fromRGB(84, 0, 0)
-            targetui.details.lists.ping.Label.TextColor3 = Color3.fromRGB(168, 57, 59)
-            targetui.details.lists.ping.IconImage.Image = "rbxassetid://110435949761986"
+            }):Play()
+        end
+    elseif ping > 500 then
+        pingElement.BackgroundColor3 = Color3.fromRGB(84, 0, 0)
+        pingElement.Label.TextColor3 = Color3.fromRGB(168, 57, 59)
+        if pingElement:FindFirstChild("IconImage") then
+            pingElement.IconImage.Image = "rbxassetid://110435949761986"
+        end
+        if targetui:FindFirstChild("basic") and targetui.basic:FindFirstChild("userdata") and targetui.basic.userdata:FindFirstChild("Ping") then
             targetui.basic.userdata.Ping.Image = "rbxassetid://110435949761986"
-            tweenService:Create(targetui.details.lists.ping.UIStroke,TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        end
+        if pingElement:FindFirstChild("UIStroke") and tweenService then
+            tweenService:Create(pingElement.UIStroke, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
                 Thickness = 3
-            }):Play();
+            }):Play()
         end
     end
 end
