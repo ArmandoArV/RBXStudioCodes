@@ -108,4 +108,13 @@ groupIDs.AIC = {
 	}
 }
 
+groupIDs.CNI = {
+	MAIN = {
+		ID = 33349175,
+		TEAM = "Black",
+		SPAWN_LOCATION = "CNI"
+		
+	}
+}
+
 return groupIDs
