@@ -13,7 +13,7 @@ local screenGui = script:FindFirstAncestorWhichIsA("ScreenGui")
 local ui = screenGui.Ui.Holder
 local config = require(screenGui.Config.Config)
 local groups = require(screenGui.Config.GroupIcons)
-local LeaderboardEntry = require(screenGui.Leaderboard.LeaderboardEntry)
+local LeaderboardEntry = require(script.Parent.Classes.LeaderboardEntry)
 
 screenGui.Enabled = true
 local teamFrame = screenGui.Template.Team:Clone()
