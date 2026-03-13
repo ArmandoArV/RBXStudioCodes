@@ -37,17 +37,6 @@ function GangCreation:Setup(uiManager)
 	local availableColors = CREATEFrame:WaitForChild("AvailableColors")
 
 	local colorStatusLabel = CREATEFrame:FindFirstChild("ColourDisplay")
-	--if not colorStatusLabel then
-	--	colorStatusLabel = Instance.new("TextLabel")
-	--	colorStatusLabel.Name = "ColorStatus"
-	--	colorStatusLabel.Parent = CREATEFrame
-	--	colorStatusLabel.Text = ""
-	--	colorStatusLabel.TextColor3 = Color3.new(1, 0.2, 0.2)
-	--	colorStatusLabel.TextSize = 14
-	--	colorStatusLabel.BackgroundTransparency = 1
-	--	colorStatusLabel.Size = UDim2.new(1, 0, 0, 20)
-	--	colorStatusLabel.Position = UDim2.new(0, 0, 1, 5)
-	--end
 
 	local function createColorButton(brickColor)
 		local btn = script.colorTemplate:Clone()
@@ -72,12 +61,6 @@ function GangCreation:Setup(uiManager)
 			warn("AvailableColors is not a ScrollingFrame! Please fix this in Studio.")
 		end
 		local uiListLayout = availableColors:FindFirstChildOfClass("UIListLayout")
-		--if not uiListLayout then
-		--	uiListLayout = Instance.new("UIListLayout")
-		--	uiListLayout.Parent = availableColors
-		--	uiListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-		--	uiListLayout.Padding = UDim.new(0, 4)
-		--end
 		local excludedColors = {}
 		task.wait(0.5)
 		local success1, reservedResult = pcall(function()
@@ -113,8 +96,6 @@ function GangCreation:Setup(uiManager)
 			end
 		end
 
-		task.wait(0.1)
-		--availableColors.CanvasSize = UDim2.new(0, 0, 0, uiListLayout.AbsoluteContentSize.Y + 10)
 		self.DebugPrint("AvailableColors count after populate:", #availableColors:GetChildren())
 	end
 

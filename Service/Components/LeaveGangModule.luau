@@ -186,23 +186,4 @@ function LeaveGangModule.CanLeaveGang(player)
 	return true, "Can leave gang"
 end
 
-function LeaveGangModule:YOUREFIRED()
-	local GangMenu = script.Parent.Parent
-	local Background = GangMenu:WaitForChild("GUIs").TeamFrame.Config.Frame:WaitForChild("Gangs")
-	local Frames = Background
-	local InfoFrame = Frames:FindFirstChild("MENU").GANG
-	if not InfoFrame then
-		warn("[LeaveGangModule] No GANG frame found")
-		return
-	end
-	local LeaveButton = InfoFrame:FindFirstChild("Leave")
-	if not LeaveButton then
-		warn("[LeaveGangModule] Could not find leave button!")
-		return
-	end
-	LeaveButton.Toggle.MouseButton1Click:Connect(function()
-		LeaveGangModule.RequestLeaveGang(true)
-	end)
-end
-
 return LeaveGangModule

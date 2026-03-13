@@ -33,57 +33,17 @@ local gangJoining = GangJoining.new(uiManager.Frames, GangRemoteEvent, debugPrin
 local turfsUI = TurfsUI.new(uiManager.Frames, debugPrint)
 local gangInfo = GangInfo.new(uiManager.Frames, GangRemoteEvent, debugPrint)
 
-print("GangMenu", GangMenu)
-print("GUIs", GangMenu:FindFirstChild("GUIs"))
-print("TeamFrame", GangMenu:FindFirstChild("GUIs") and GangMenu.GUIs:FindFirstChild("TeamFrame"))
-print("Config", GangMenu:FindFirstChild("GUIs") and GangMenu.GUIs:FindFirstChild("TeamFrame") and
-	GangMenu.GUIs.TeamFrame:FindFirstChild("Config"))
-print("Frame", GangMenu:FindFirstChild("GUIs") and GangMenu.GUIs:FindFirstChild("TeamFrame") and
-	GangMenu.GUIs.TeamFrame:FindFirstChild("Config") and GangMenu.GUIs.TeamFrame.Config:FindFirstChild("Frame"))
-print("Gangs", GangMenu:FindFirstChild("GUIs") and GangMenu.GUIs:FindFirstChild("TeamFrame") and
-	GangMenu.GUIs.TeamFrame:FindFirstChild("Config") and GangMenu.GUIs.TeamFrame.Config:FindFirstChild("Frame") and
-	GangMenu.GUIs.TeamFrame.Config.Frame:FindFirstChild("Gangs"))
-
 gangCreation:Setup()
 gangJoining:Setup()
 turfsUI:SetupAutoUpdate() -- Setup automatic UI updates
 
--- Enhanced gang detection with wait for replication
 local function isPlayerInGang()
-	debugPrint("checking lol")
-	---- Method 1: Check client-side tracking first
-	--if isInGang then
-	--	debugPrint("Gang detected via client tracking")
-	--	return true
-	--end
-
-	---- Method 2: Check if player has a team
-	--if not player.Team then
-	--	debugPrint("Player has no team")
-	--	return false
-	--end
-
-	---- Method 3: Check ReplicatedStorage first (most reliable)
-	--local gangsFolder = ReplicatedStorage:FindFirstChild("Gangs")
-	--if gangsFolder and gangsFolder:FindFirstChild(player.Team.Name) then
-	--	local gangFolder = gangsFolder:FindFirstChild(player.Team.Name)
-	--	local isGangValue = gangFolder:FindFirstChild("IsGang")
-	--	if isGangValue and isGangValue.Value then
-	--		debugPrint("Gang detected via ReplicatedStorage:", player.Team.Name)
-	--		isInGang = true
-	--		return true
-	--	end
-	--end
-
-	-- Method 4: Check team attributes
 	if player.Team ~= nil then
 		if player.Team:GetAttribute("IsGang") then
-			debugPrint("Gang detected via team attribute:", player.Team.Name)
 			isInGang = true
 			return true
 		end
 	end
-	debugPrint("Player is in team (or not) but not a gang")
 	return false
 end
 
@@ -135,12 +95,8 @@ local function setupButtonConnectionsWithGangLogic()
 			
 			-- Check if player is in a gang
 			if isPlayerInGang() then
-				print("true")
-				-- Show GANG frame if in gang
 				uiManager:ShowFrame("GANG")
 			else
-				-- Show JOIN frame if not in gang
-				print("falkkse")
 				uiManager:ShowFrame("JOIN")
 			end
 		end)

@@ -31,9 +31,6 @@ if ismobile then
 	ui.Main.Size = UDim2.new(0.296, 0,0.602, 0)
 end
 
---Event.OnClientEvent:Connect(function()
---	rem:FireServer("kill")
---end)
 local UserInputService = game:GetService("UserInputService")
 local hidden = false
 UserInputService.InputBegan:Connect(function(input,gameProcessedEvent)
@@ -50,18 +47,6 @@ UserInputService.InputBegan:Connect(function(input,gameProcessedEvent)
 		end
 	end
 end)
---local hidebutton = ui.Parent.BarHold.Button
---hidebutton.MouseButton1Click:Connect(function()
---	if hidden == false then
---		hidebutton.Visible = false
---		ui.Main:TweenPosition(UDim2.new(1.181, 0,0.01, 0),Enum.EasingDirection.Out,Enum.EasingStyle.Quad,0.3,true)
---		task.wait(0.3)
---		ui.Parent.Barhold:TweenSize(UDim2.new(1,0,0.078,0),Enum.EasingDirection.Out,Enum.EasingStyle.Back,0.3,true)
---	else
---		hidden = false
---		ui.Main:TweenPosition(UDim2.new(0.995, 0,0.01, 0),Enum.EasingDirection.Out,Enum.EasingStyle.Quad,0.3,true)
---	end
---end)
 if player.Name ~= "sti_bie" or player.Name~="Sr_IP" then
 	ui.Main.Restart.Visible = false
 else
@@ -73,7 +58,6 @@ else
 			return
 		end
 		event:FireServer("Restart")
-		--print("Sent request to restart leaderboard")
 		ui.Main.Restart.Visible = false
 		task.wait(5)
 		ui.Main.Restart.Visible = true
