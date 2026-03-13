@@ -1,16 +1,53 @@
 local CapturePoint = {}
 CapturePoint.__index = CapturePoint
 
-function CapturePoint.new(name, location)
+-- Modes definition
+local MODES = {
+    Easy = {name = "Easy", duration = 1200, onCapture = function(self, isNewTeam)
+        if isNewTeam then
+            self.Score = math.max(0, self.Score - 1)
+        else
+            self.Score = self.Score + 1
+        end
+    end},
+    Medium = {name = "Medium", duration = 1500, onCapture = function(self, isNewTeam)
+        if isNewTeam then
+            self.Score = math.max(0, self.Score - 2)
+        else
+            self.Score = self.Score + 1
+        end
+    end},
+    Hard = {name = "Hard", duration = 1500, onCapture = function(self, isNewTeam)
+        if isNewTeam then
+            self.Score = 0
+        else
+            self.Score = self.Score + 1
+        end
+    end}
+}
+
+function CapturePoint.new(name, location, mode)
     local self = setmetatable({}, CapturePoint)
     self.Name = name
     self.Location = location -- Vector3 or CFrame for the capture point's position
     self.Occupied = false -- Whether the capture point is currently occupied
     self.OccupyingTeam = nil -- Team currently occupying the capture point
-    print("Capture Point created: " .. self.Name .. " at location: " .. tostring(location))
+    self.Mode = MODES[mode] or MODES.Easy
+    self.Score = 0
+    self.Timer = self.Mode.duration
+    print("Capture Point created: " .. self.Name .. " at location: " .. tostring(location) .. " | Mode: " .. self.Mode.name)
     return self
 end
 
+-- Capture logic with scoring
+function CapturePoint:Capture(newTeam)
+    local isNewTeam = (self.OccupyingTeam ~= newTeam)
+    self.Mode.onCapture(self, isNewTeam)
+    self.Occupied = true
+    self.OccupyingTeam = newTeam
+    print("Capture Point " .. self.Name .. " captured by team: " .. newTeam.Name .. " | Score: " .. tostring(self.Score))
+    -- TODO: Fire event for UI update
+end
 function CapturePoint:SetOccupied(team)
     self.Occupied = true
     self.OccupyingTeam = team
@@ -32,7 +69,10 @@ function CapturePoint:GetInfo()
         Name = self.Name,
         Location = self.Location,
         Occupied = self.Occupied,
-        OccupyingTeam = self.OccupyingTeam and self.OccupyingTeam.Name or "None"
+        OccupyingTeam = self.OccupyingTeam and self.OccupyingTeam.Name or "None",
+        Mode = self.Mode.name,
+        Score = self.Score,
+        Timer = self.Timer
     }
 end
 

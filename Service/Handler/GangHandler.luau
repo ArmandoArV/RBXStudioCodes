@@ -368,19 +368,4 @@ function GangHandler:HandleLeaveGang(player, data)
 	debugLog(player.Name, "left gang", teamName)
 end
 
-function GangHandler:AddMember(player, member)
-	debugLog("AddMember called for", player.Name, "adding", member and member.Name)
-	-- Implementation would go here
-end
-
-function GangHandler:RemoveMember(player, member)
-	debugLog("RemoveMember called for", player.Name, "removing", member and member.Name)
-	-- Implementation would go here
-end
-
-function GangHandler:SetLeader(player, newLeader)
-	debugLog("SetLeader called for", player.Name, "new leader", newLeader and newLeader.Name)
-	-- Implementation would go here
-end
-
 return GangHandler

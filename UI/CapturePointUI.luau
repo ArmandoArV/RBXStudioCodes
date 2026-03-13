@@ -9,6 +9,9 @@ local ServerScript = game:WaitForChild("ServerScriptService")
 local CapturePointHandler = require(ServerScript:WaitForChild("Handler"):WaitForChild("CapturePointHandler"))
 local TurfClient = require(ReplicatedStorage:WaitForChild("UI"):WaitForChild("TurfClient"))
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local remoteEvent = ReplicatedStorage:FindFirstChild("CapturePointEvent")
+
 local function createCapturePointUI()
 	local player = Players.LocalPlayer
 	local screenGui = Instance.new("ScreenGui")
@@ -43,58 +46,73 @@ local function createCapturePointUI()
 	layout.Padding = UDim.new(0, 6)
 	layout.Parent = list
 
-	-- Get all capture points
-	local capturePoints = CapturePointHandler:GetAllCapturePoints()
-	for _, cp in ipairs(capturePoints) do
-		local info = cp:GetInfo()
-		local occupyingTeam = cp.OccupyingTeam
-		local teamColor = Color3.new(0.5,0.5,0.5)
-		local groupId = "None"
-		if occupyingTeam then
-			teamColor = occupyingTeam.TeamColor and occupyingTeam.TeamColor.Color or Color3.new(0.5,0.5,0.5)
-			-- Use TurfClient to get the turf for this team
-			local turfInstance = TurfClient:GetTurfByTeam(occupyingTeam)
-			if turfInstance then
-				local ownerValue = turfInstance:FindFirstChild("Owner")
-				if ownerValue and ownerValue.Value then
-					local owner = ownerValue.Value
-					groupId = tostring(owner.UserId or owner.Name or "Unknown")
+	local function updateCapturePointsUI(allInfos)
+		list:ClearAllChildren()
+		layout.Parent = list
+		for _, info in pairs(allInfos) do
+			local teamColor = Color3.new(0.5,0.5,0.5)
+			local groupId = info.OccupyingTeam or "None"
+			-- You can add logic here to get team color/groupId from your group/team system
+
+			local row = Instance.new("Frame")
+			row.Size = UDim2.new(1, 0, 0, 32)
+			row.BackgroundTransparency = 1
+			row.Parent = list
+
+			local nameLabel = Instance.new("TextLabel")
+			nameLabel.Size = UDim2.new(0.3, 0, 1, 0)
+			nameLabel.Position = UDim2.new(0, 0, 0, 0)
+			nameLabel.BackgroundTransparency = 1
+			nameLabel.Text = info.Name
+			nameLabel.Font = Enum.Font.SourceSans
+			nameLabel.TextSize = 22
+			nameLabel.TextColor3 = Color3.new(1,1,1)
+			nameLabel.Parent = row
+
+			local groupLabel = Instance.new("TextLabel")
+			groupLabel.Size = UDim2.new(0.3, 0, 1, 0)
+			groupLabel.Position = UDim2.new(0.3, 0, 0, 0)
+			groupLabel.BackgroundTransparency = 1
+			groupLabel.Text = "Group: " .. groupId
+			groupLabel.Font = Enum.Font.SourceSans
+			groupLabel.TextSize = 20
+			groupLabel.TextColor3 = Color3.new(0.8,0.8,0.8)
+			groupLabel.Parent = row
+
+			local scoreLabel = Instance.new("TextLabel")
+			scoreLabel.Size = UDim2.new(0.2, 0, 1, 0)
+			scoreLabel.Position = UDim2.new(0.6, 0, 0, 0)
+			scoreLabel.BackgroundTransparency = 1
+			scoreLabel.Text = "Score: " .. tostring(info.Score)
+			scoreLabel.Font = Enum.Font.SourceSans
+			scoreLabel.TextSize = 20
+			scoreLabel.TextColor3 = Color3.new(0.9,0.9,0.9)
+			scoreLabel.Parent = row
+
+			local modeLabel = Instance.new("TextLabel")
+			modeLabel.Size = UDim2.new(0.2, 0, 1, 0)
+			modeLabel.Position = UDim2.new(0.8, 0, 0, 0)
+			modeLabel.BackgroundTransparency = 1
+			modeLabel.Text = "Mode: " .. tostring(info.Mode)
+			modeLabel.Font = Enum.Font.SourceSans
+			modeLabel.TextSize = 18
+			modeLabel.TextColor3 = Color3.new(0.7,0.7,1)
+			modeLabel.Parent = row
+		end
+	end
+
+	if remoteEvent then
+		remoteEvent.OnClientEvent:Connect(function(action, info)
+			if action == "UpdateCapturePointUI" then
+				if info and type(info) == "table" then
+					updateCapturePointsUI(info)
 				end
 			end
-		end
-
-		local row = Instance.new("Frame")
-		row.Size = UDim2.new(1, 0, 0, 32)
-		row.BackgroundTransparency = 1
-		row.Parent = list
-
-		local nameLabel = Instance.new("TextLabel")
-		nameLabel.Size = UDim2.new(0.4, 0, 1, 0)
-		nameLabel.Position = UDim2.new(0, 0, 0, 0)
-		nameLabel.BackgroundTransparency = 1
-		nameLabel.Text = info.Name
-		nameLabel.Font = Enum.Font.SourceSans
-		nameLabel.TextSize = 22
-		nameLabel.TextColor3 = Color3.new(1,1,1)
-		nameLabel.Parent = row
-
-		local groupLabel = Instance.new("TextLabel")
-		groupLabel.Size = UDim2.new(0.3, 0, 1, 0)
-		groupLabel.Position = UDim2.new(0.4, 0, 0, 0)
-		groupLabel.BackgroundTransparency = 1
-		groupLabel.Text = "Group: " .. groupId
-		groupLabel.Font = Enum.Font.SourceSans
-		groupLabel.TextSize = 20
-		groupLabel.TextColor3 = Color3.new(0.8,0.8,0.8)
-		groupLabel.Parent = row
-
-		local colorBox = Instance.new("Frame")
-		colorBox.Size = UDim2.new(0, 32, 0, 32)
-		colorBox.Position = UDim2.new(0.7, 10, 0, 0)
-		colorBox.BackgroundColor3 = teamColor
-		colorBox.BorderSizePixel = 0
-		colorBox.Parent = row
+		end)
 	end
+
+	-- Initial static UI build (optional, can be removed if always event-driven)
+	-- updateCapturePointsUI({})
 end
 
 return createCapturePointUI

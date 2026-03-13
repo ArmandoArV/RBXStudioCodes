@@ -1,44 +1,30 @@
 local Human = {}
 Human.__index = Human
 
+local BODY_PARTS = {
+	"Head", "UpperTorso", "LowerTorso",
+	"LeftUpperArm", "RightUpperArm", "LeftLowerArm", "RightLowerArm",
+	"LeftHand", "RightHand",
+	"LeftUpperLeg", "RightUpperLeg", "LeftLowerLeg", "RightLowerLeg",
+	"LeftFoot", "RightFoot",
+}
+
+local function scanParts(self, model)
+	self.Humanoid = model:FindFirstChildOfClass("Humanoid")
+	for _, partName in ipairs(BODY_PARTS) do
+		self[partName] = model:FindFirstChild(partName)
+	end
+end
+
 function Human.new(model)
-    local self = setmetatable({}, Human)
-    self.Model = model
-    self.Humanoid = model:FindFirstChildOfClass("Humanoid") or nil
-    self.Head = model:FindFirstChild("Head") or nil
-    self.LeftUpperArm = model:FindFirstChild("LeftUpperArm") or nil
-    self.RightUpperArm = model:FindFirstChild("RightUpperArm") or nil
-    self.LeftUpperLeg = model:FindFirstChild("LeftUpperLeg") or nil
-    self.RightUpperLeg = model:FindFirstChild("RightUpperLeg") or nil
-    self.LeftHand = model:FindFirstChild("LeftHand") or nil
-    self.RightHand = model:FindFirstChild("RightHand") or nil
-    self.LeftFoot = model:FindFirstChild("LeftFoot") or nil
-    self.RightFoot = model:FindFirstChild("RightFoot") or nil
-    self.LeftLowerArm = model:FindFirstChild("LeftLowerArm") or nil
-    self.RightLowerArm = model:FindFirstChild("RightLowerArm") or nil
-    self.LeftLowerLeg = model:FindFirstChild("LeftLowerLeg") or nil
-    self.RightLowerLeg = model:FindFirstChild("RightLowerLeg") or nil
-    self.UpperTorso = model:FindFirstChild("UpperTorso") or nil
-    self.LowerTorso = model:FindFirstChild("LowerTorso") or nil
+	local self = setmetatable({}, Human)
+	self.Model = model
+	scanParts(self, model)
+	return self
 end
 
 function Human:Update()
-    self.Humanoid = self.Model:FindFirstChildOfClass("Humanoid") or nil
-    self.Head = self.Model:FindFirstChild("Head") or nil
-    self.LeftUpperArm = self.Model:FindFirstChild("LeftUpperArm") or nil
-    self.RightUpperArm = self.Model:FindFirstChild("RightUpperArm") or nil
-    self.LeftUpperLeg = self.Model:FindFirstChild("LeftUpperLeg") or nil
-    self.RightUpperLeg = self.Model:FindFirstChild("RightUpperLeg") or nil
-    self.LeftHand = self.Model:FindFirstChild("LeftHand") or nil
-    self.RightHand = self.Model:FindFirstChild("RightHand") or nil
-    self.LeftFoot = self.Model:FindFirstChild("LeftFoot") or nil
-    self.RightFoot = self.Model:FindFirstChild("RightFoot") or nil
-    self.LeftLowerArm = self.Model:FindFirstChild("LeftLowerArm") or nil
-    self.RightLowerArm = self.Model:FindFirstChild("RightLowerArm") or nil
-    self.LeftLowerLeg = self.Model:FindFirstChild("LeftLowerLeg") or nil
-    self.RightLowerLeg = self.Model:FindFirstChild("RightLowerLeg") or nil
-    self.UpperTorso = self.Model:FindFirstChild("UpperTorso") or nil
-    self.LowerTorso = self.Model:FindFirstChild("LowerTorso") or nil
+	scanParts(self, self.Model)
 end
 
 -- Update methods for each body part

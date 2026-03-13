@@ -1,0 +1,9 @@
+{
+  "servers": {
+    "Roblox_Studio": {
+      "command": "C:\\Users\\PC BEAR\\AppData\\Local\\Roblox\\Versions\\version-cdda02ef6a294442\\StudioMCP.exe",
+      "args": [],
+      "type": "stdio"
+    }
+  }
+}

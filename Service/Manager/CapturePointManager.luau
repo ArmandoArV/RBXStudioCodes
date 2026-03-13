@@ -1,8 +1,6 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Teams = game:GetService("Teams")
-local ServerScript = game:WaitForChild("ServerScriptService")
-local CapturePointHandler = require(ServerScript:WaitForChild("Handler"):WaitForChild("CapturePointHandler"))
-
+local CapturePointHandler = require(game.ReplicatedStorage.Service.Handler.CapturePointHandler)
 local CapturePointManager = {}
 CapturePointManager.CapturePoints = {}
 
